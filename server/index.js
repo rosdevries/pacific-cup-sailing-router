@@ -153,4 +153,11 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.on('error', e => { console.error('[server] listen error:', e.message, 'PORT:', PORT); process.exit(1); });
-server.listen(PORT, () => console.log(`Pacific Cup Sailing Router on :${PORT}`));
+server.listen(PORT, () => {
+  console.log(`Pacific Cup Sailing Router on :${PORT}`);
+  // Background GFS refresh: poll every 30 min so a new cycle is cached as soon
+  // as it's available (~5 h after cycle init) without needing a separate cron service.
+  setInterval(() => {
+    getGrid().catch(e => console.error('[server] bg refresh failed:', e.message));
+  }, 30 * 60 * 1000);
+});
