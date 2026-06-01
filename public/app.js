@@ -209,6 +209,22 @@ function nearLand(lat, lon) {
 }
 function drawIsochrones(start) {
   if (!result) return;
+  ctx.save();
+  // Clip to ocean: full-canvas rect minus the California coast polygon.
+  // evenodd rule: 1 crossing (inside rect only) = draw; 2 crossings (inside both) = skip.
+  ctx.beginPath();
+  ctx.rect(0, 0, W, H);
+  let clipFirst = true;
+  for (const [lat, lon] of CALIFORNIA_COAST) {
+    const [x, y] = px(lat, lon);
+    const cx = Math.min(W + 4, x);
+    if (clipFirst) { ctx.moveTo(cx, y); clipFirst = false; } else ctx.lineTo(cx, y);
+  }
+  ctx.lineTo(W + 4, H + 4);
+  ctx.lineTo(W + 4, -4);
+  ctx.closePath();
+  ctx.clip('evenodd');
+
   result.isochrones.forEach((front, i) => {
     if (front.length < 2) return;
     const pts = [...front].sort((a, b) => bearing(start, a) - bearing(start, b));
@@ -224,6 +240,7 @@ function drawIsochrones(start) {
     }
     ctx.stroke();
   });
+  ctx.restore();
 }
 function drawTrack() {
   if (!result || !result.track.length) return;
