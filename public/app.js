@@ -99,6 +99,9 @@ function drawLand() {
   const [lx, ty] = px(VIEW.latMax, VIEW.lonMin);
   const [rx, by] = px(VIEW.latMin, VIEW.lonMax);
   ctx.drawImage(LANDCANVAS, lx, ty, rx - lx, by - ty);
+  // California/Baja continues east of the mask — fill to the screen edge
+  ctx.fillStyle = 'rgba(28,40,34,0.95)';
+  ctx.fillRect(rx, 0, W - rx, H);
 }
 function drawGraticule() {
   ctx.strokeStyle = 'rgba(86,152,168,0.14)'; ctx.fillStyle = '#4a7d8a';
@@ -212,6 +215,38 @@ function drawGybes() {
     ctx.fill(); ctx.stroke();
   });
 }
+function sailCat(twa) { return twa < 90 ? 'up' : twa < 150 ? 'reach' : 'run'; }
+function drawSailChanges() {
+  if (!result || result.track.length < 2) return;
+  const tr = result.track;
+  let prev = null;
+  ctx.lineWidth = 1.3;
+  for (let i = 1; i < tr.length - 1; i++) {
+    const h = bearing(tr[i - 1], tr[i]);
+    const e = getEnv(tr[i].lat, tr[i].lon, tr[i].t);
+    const twa = Math.abs(((e.twd - h + 540) % 360) - 180);
+    const cat = sailCat(twa);
+    if (prev !== null && cat !== prev) {
+      const [x, y] = px(tr[i].lat, tr[i].lon);
+      ctx.fillStyle = 'rgba(8,22,31,0.92)';
+      ctx.strokeStyle = 'rgba(190,220,235,0.85)';
+      if (cat === 'up') {
+        // Triangle — upwind
+        ctx.beginPath(); ctx.moveTo(x, y - 6); ctx.lineTo(x + 5.5, y + 4); ctx.lineTo(x - 5.5, y + 4); ctx.closePath();
+        ctx.fill(); ctx.stroke();
+      } else if (cat === 'reach') {
+        // Horizontal bar — reaching
+        ctx.beginPath(); ctx.rect(x - 6, y - 2.5, 12, 5);
+        ctx.fill(); ctx.stroke();
+      } else {
+        // Circle — spinnaker / running
+        ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+      }
+    }
+    prev = cat;
+  }
+}
 function marker(p, color, r) {
   const [x,y] = px(p.lat,p.lon); ctx.fillStyle = color; ctx.strokeStyle = '#061019'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill(); ctx.stroke();
@@ -232,7 +267,7 @@ function draw() {
   if (document.getElementById('t-wind').checked) drawWind();
   if (document.getElementById('t-land').checked) drawLand();
   if (document.getElementById('t-iso').checked) drawIsochrones(origin);
-  if (document.getElementById('t-track').checked) { drawTrack(); drawGybes(); }
+  if (document.getElementById('t-track').checked) { drawTrack(); drawGybes(); drawSailChanges(); }
   drawMarkers(); telemetry(); if (livePos) { drawBoatHeading(); placeBoatDot(); }
 }
 
