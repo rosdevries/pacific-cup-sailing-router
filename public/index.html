@@ -103,6 +103,20 @@
     border: 1px solid var(--hairline); border-radius: 2px; padding: 8px; font-family: 'IBM Plex Mono', monospace;
     font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; cursor: pointer; }
   #geo-close:hover { background: rgba(63,205,224,0.1); }
+  .certhelp { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--grid-text); margin: 7px 0 2px; line-height: 1.4; }
+  .certhelp a { color: var(--cyan); text-decoration: none; border-bottom: 1px dotted rgba(63,205,224,0.5); cursor: pointer; }
+  .certhelp a:hover { border-bottom-style: solid; }
+  .cert-guide { font-family: 'Saira', sans-serif; font-size: 12.5px; color: var(--ink); line-height: 1.5; }
+  .cert-guide p { margin: 0 0 10px; }
+  .cert-guide ol { margin: 0 0 10px; padding-left: 20px; }
+  .cert-guide li { margin: 5px 0; }
+  .cert-guide b { color: var(--cyan); font-weight: 600; }
+  .cert-guide a { color: var(--cyan); }
+  .cert-guide .cert-foot { font-size: 11px; color: var(--grid-text); margin-bottom: 0; }
+  #cert-close { margin-top: 16px; width: 100%; background: var(--cyan); color: var(--abyss);
+    border: 1px solid var(--cyan); border-radius: 2px; padding: 8px; font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; cursor: pointer; font-weight: 500; }
+  #cert-close:hover { filter: brightness(1.1); }
   #controls .status { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.04em; margin: 8px 0 2px; }
   .status.live { color: var(--green); } .status.demo { color: var(--amber); } .status.load { color: var(--grid-text); }
   #controls .boatrow { display: flex; gap: 6px; margin: 7px 0 3px; }
@@ -165,6 +179,7 @@
     <input type="file" id="cert" accept="application/pdf" hidden>
   </div>
   <div class="certmsg" id="certmsg"></div>
+  <div class="certhelp">Sailing a different boat? <a href="#" id="cert-help-link">Use its ORR certificate &#x2192;</a></div>
   <div class="effrow">
     <div class="efflabel"><span>POLAR EFFICIENCY</span><span id="efflabel">90%</span></div>
     <input type="range" id="effslider" min="70" max="100" value="90" step="1">
@@ -185,6 +200,23 @@
 </div>
 
 <div class="panel" id="telemetry"></div>
+<div class="modal-backdrop" id="cert-modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Use your ORR certificate">
+    <div class="modal-title">Route your own boat</div>
+    <div class="cert-guide">
+      <p>Not in the list above? If your boat holds an <b>ORR</b> or <b>ORR-Ez</b> certificate, you can upload it and route on its exact polars.</p>
+      <ol>
+        <li>Open the <a id="cert-list-link" href="#" target="_blank" rel="noopener">current ORR certificate list &#x2197;</a> on regattaman.com.</li>
+        <li>Find your boat and click its <b>Cert ID</b>.</li>
+        <li>On the certificate page, scroll to the bottom and click <b>Print</b>.</li>
+        <li>In the print dialog, choose <b>Save as PDF</b> and save the file.</li>
+        <li>Back here, click <b>&#xFF0B; ORR cert</b> and pick that PDF.</li>
+      </ol>
+      <p class="cert-foot">Your boat is added and selected automatically &#x2014; then choose a start point or hit <b>Route from my location</b>. (We read the page-2 boat-speed polar table.)</p>
+    </div>
+    <button id="cert-close">Got it</button>
+  </div>
+</div>
 <div class="modal-backdrop" id="geo-modal" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-label="Route from my location">
     <div class="modal-title">Route from my location</div>

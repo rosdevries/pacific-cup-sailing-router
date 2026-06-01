@@ -435,7 +435,22 @@ function routeFromLocation() {
 document.getElementById('geo').addEventListener('click', routeFromLocation);
 document.getElementById('geo-close').addEventListener('click', closeGeo);
 document.getElementById('geo-modal').addEventListener('click', function(e) { if (e.target.id === 'geo-modal') closeGeo(); });
-document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeGeo(); });
+
+function regattamanUrl() {
+  const d = new Date(), iso = d.toISOString().slice(0, 10), yr = d.getUTCFullYear();
+  return 'https://regattaman.com/cert_list.php?lType=effD&effDate=' + iso +
+         '&crule=ORR&yr=' + yr + '&goback=/certificate_page.php?cp_tab=1';
+}
+function openCert() {
+  document.getElementById('cert-list-link').href = regattamanUrl();
+  document.getElementById('cert-modal').hidden = false;
+}
+function closeCert() { document.getElementById('cert-modal').hidden = true; }
+
+document.getElementById('cert-help-link').addEventListener('click', e => { e.preventDefault(); openCert(); });
+document.getElementById('cert-close').addEventListener('click', closeCert);
+document.getElementById('cert-modal').addEventListener('click', e => { if (e.target.id === 'cert-modal') closeCert(); });
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') { closeGeo(); closeCert(); } });
 
 // ---- Geolocation: continuous tracking ----
 function optimalHeadingDeg() {
