@@ -266,7 +266,7 @@ function gybes(tr) {
   const g = []; if (tr.length < 3) return g;
   const rel = [];
   for (let s = 0; s < tr.length - 1; s++) {
-    const h = bearing(tr[s], tr[s+1]), e = getEnv(tr[s].lat, tr[s].lon);
+    const h = bearing(tr[s], tr[s+1]), e = getEnv(tr[s].lat, tr[s].lon, tr[s].t);
     rel.push(((e.twd - h + 540) % 360) - 180);
   }
   for (let s = 1; s < rel.length; s++)
