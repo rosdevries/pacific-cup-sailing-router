@@ -9,6 +9,8 @@ const { boats: BOATS, boatOrder: BOAT_ORDER } = await fetch('/data/boats.json').
 // ---- Constants ----
 const SF   = { lat: 37.60,   lon: -122.90   };
 const DEST = { lat: 21.4806, lon: -157.7725 };
+// Render a wider area than the land-mask coverage so Hawaii clears the left controls panel
+const RVIEW = { latMin: 14, latMax: 44.5, lonMin: -175, lonMax: -113 };
 const HIGH = { lat: 37, lon: -147 };
 const WIND_STOPS = [[0,[43,74,90]],[8,[46,154,166]],[14,[79,208,199]],[20,[255,209,102]],[28,[255,107,94]]];
 const RESOLVE_NM = 1.5, RESOLVE_MS = 60000;
@@ -29,11 +31,11 @@ const cv = document.getElementById('map'), ctx = cv.getContext('2d');
 let dpr = 1, W = 0, H = 0;
 
 // ---- Projection ----
-const px    = (lat, lon) => [(lon - VIEW.lonMin) / (VIEW.lonMax - VIEW.lonMin) * W,
-                             (VIEW.latMax - lat) / (VIEW.latMax - VIEW.latMin) * H];
-const unpx  = (x, y)    => ({ lat: VIEW.latMax - y/H*(VIEW.latMax - VIEW.latMin),
-                               lon: VIEW.lonMin + x/W*(VIEW.lonMax - VIEW.lonMin) });
-const inChart = (lat, lon) => lat > VIEW.latMin && lat < VIEW.latMax && lon > VIEW.lonMin && lon < VIEW.lonMax;
+const px    = (lat, lon) => [(lon - RVIEW.lonMin) / (RVIEW.lonMax - RVIEW.lonMin) * W,
+                             (RVIEW.latMax - lat) / (RVIEW.latMax - RVIEW.latMin) * H];
+const unpx  = (x, y)    => ({ lat: RVIEW.latMax - y/H*(RVIEW.latMax - RVIEW.latMin),
+                               lon: RVIEW.lonMin + x/W*(RVIEW.lonMax - RVIEW.lonMin) });
+const inChart = (lat, lon) => lat > RVIEW.latMin && lat < RVIEW.latMax && lon > RVIEW.lonMin && lon < RVIEW.lonMax;
 const isLand  = (lat, lon) => MASK ? maskLand(MASK, lat, lon) : false;
 
 // ---- Worker ----
@@ -91,7 +93,13 @@ function drawOcean() {
   const g = ctx.createRadialGradient(W*0.5, H*0.42, 80, W*0.5, H*0.5, Math.max(W,H)*0.75);
   g.addColorStop(0, '#0c2230'); g.addColorStop(1, '#061019'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 }
-function drawLand() { if (LANDCANVAS) ctx.drawImage(LANDCANVAS, 0, 0, W, H); }
+function drawLand() {
+  if (!LANDCANVAS) return;
+  // Land mask PNG covers VIEW; project it into the wider RVIEW canvas
+  const [lx, ty] = px(VIEW.latMax, VIEW.lonMin);
+  const [rx, by] = px(VIEW.latMin, VIEW.lonMax);
+  ctx.drawImage(LANDCANVAS, lx, ty, rx - lx, by - ty);
+}
 function drawGraticule() {
   ctx.strokeStyle = 'rgba(86,152,168,0.14)'; ctx.fillStyle = '#4a7d8a';
   ctx.lineWidth = 1; ctx.font = "10px 'IBM Plex Mono'";
@@ -99,7 +107,7 @@ function drawGraticule() {
     const [, y] = px(lat, VIEW.lonMin);
     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); ctx.fillText(lat+'°N', 6, y-4);
   }
-  for (let lon = -155; lon <= -120; lon += 5) {
+  for (let lon = -165; lon <= -120; lon += 5) {
     const [x] = px(VIEW.latMin, lon);
     ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); ctx.fillText(Math.abs(lon)+'°W', x+4, H-8);
   }
@@ -116,8 +124,8 @@ function arrow(x, y, dirToward, len, color) {
 }
 function drawWaves() {
   const step = 1.4;
-  for (let lat = VIEW.latMin; lat < VIEW.latMax; lat += step)
-    for (let lon = VIEW.lonMin; lon < VIEW.lonMax; lon += step) {
+  for (let lat = RVIEW.latMin; lat < RVIEW.latMax; lat += step)
+    for (let lon = RVIEW.lonMin; lon < RVIEW.lonMax; lon += step) {
       const e = getEnv(lat+step/2, lon+step/2, DISP_T);
       const [x,y] = px(lat, lon), [x2,y2] = px(lat-step, lon+step);
       ctx.fillStyle = waveColor(e.waveHeight); ctx.fillRect(x, y, x2-x, y2-y);
@@ -125,8 +133,8 @@ function drawWaves() {
 }
 function drawWind() {
   const step = 1.55;
-  for (let lat = VIEW.latMin+0.4; lat < VIEW.latMax; lat += step)
-    for (let lon = VIEW.lonMin+0.4; lon < VIEW.lonMax; lon += step) {
+  for (let lat = RVIEW.latMin+0.4; lat < RVIEW.latMax; lat += step)
+    for (let lon = RVIEW.lonMin+0.4; lon < RVIEW.lonMax; lon += step) {
       const e = getEnv(lat, lon, DISP_T); const [x,y] = px(lat, lon);
       const len = 4 + Math.min(24, e.tws*0.95); arrow(x, y, (e.twd+180)%360, len, windColor(e.tws));
     }
