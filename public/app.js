@@ -19,6 +19,7 @@ const DEST_NAME = 'Kaneohe Bay';
 // ---- Mutable state ----
 let POLAR = BOATS.sc40.polar;
 let POLAR_EFF = 1.00;
+let ASYM = false;
 let MASK = null, LANDCANVAS = null;
 let SAMPLER = null, FIELD = 'synthetic', GRID = null;
 let DISP_T = 0, EPOCH0 = Math.floor(Date.now() / 1000), HORIZON_H = 192, MAXT = 384;
@@ -218,7 +219,7 @@ function drawGybes() {
 // Three sail-plan buckets based on sailFor() output — broad reach and running
 // are both 'kite' so no marker fires between them.
 function sailCat(twa, tws) {
-  if (sailFor(twa, tws).includes('Spinnaker')) return 'kite';
+  if (sailFor(twa, tws, ASYM).includes('Spinnaker')) return 'kite';
   return twa < 90 ? 'upwind' : 'reach';
 }
 function drawSailChanges() {
@@ -289,13 +290,14 @@ function telemetry() {
     + `<div class="row"><span class="k">extra distance</span><span class="v">+${Math.round((sailed/gc-1)*100)}%</span></div>`
     + `<div class="row"><span class="k">gybes</span><span class="v">${gybes(result.track).length}</span></div>`;
 }
-function sailFor(twa, tws) {
+function sailFor(twa, tws, asym = false) {
   if (twa < 42) return 'Pinching — no drive';
   if (twa < 70) return 'Main + Genoa — close-hauled';
   if (twa < 90) return 'Main + Genoa — close reach';
   if (twa < 110) return tws > 22 ? 'Main + Jib — beam reach' : 'Main + Genoa — beam reach';
-  if (twa < 150) return tws > 24 ? 'Main + poled jib — heavy air' : 'Spinnaker (sym) — broad reach';
-  return tws > 24 ? 'Main + poled jib — heavy air' : 'Spinnaker (sym) — running deep';
+  const kite = asym ? 'Spinnaker (asym)' : 'Spinnaker (sym)';
+  if (twa < 150) return tws > 24 ? 'Main + poled jib — heavy air' : `${kite} — broad reach`;
+  return tws > 24 ? 'Main + poled jib — heavy air' : `${kite} — running deep`;
 }
 function nearestOnTrack(mx, my) {
   if (!result || result.track.length < 2) return null;
@@ -323,7 +325,7 @@ cv.addEventListener('mousemove', ev => {
     routedot.style.display = 'block'; routedot.style.left = near.x+'px'; routedot.style.top = near.y+'px';
     cursorEl.innerHTML = `<span class="lbl">heading</span> ${Math.round(near.heading)}°  <span class="lbl">tack</span> ${tack}<br>`
       + `<span class="lbl">TWA</span> ${Math.round(twa)}°  <span class="lbl">wind</span> ${Math.round(e.tws)} kt<br>`
-      + `<span class="lbl">sail</span> ${sailFor(twa, e.tws)}<br>`
+      + `<span class="lbl">sail</span> ${sailFor(twa, e.tws, ASYM)}<br>`
       + `<span class="lbl">ETA</span> +${fmtDur(near.t)}`;
   } else {
     routedot.style.display = 'none';
@@ -405,7 +407,9 @@ function populateBoatSelect() {
 }
 function setBoat(id) {
   if (!BOATS[id]) return;
-  POLAR = BOATS[id].polar; document.getElementById('boat').value = id;
+  POLAR = BOATS[id].polar;
+  ASYM = BOATS[id].asymSpinnaker ?? false;
+  document.getElementById('boat').value = id;
   document.getElementById('boatsub').textContent = boatSub(id); compute();
 }
 function setupBoats() {
@@ -428,7 +432,7 @@ async function loadCert(file) {
     }
     const polar = parseORR(lines);
     const id = 'cert'+Object.keys(BOATS).length;
-    BOATS[id] = { name: file.name.replace(/\.pdf$/i,'').slice(0,26)||'Uploaded cert', meta: 'uploaded ORR cert', loa: null, polar };
+    BOATS[id] = { name: file.name.replace(/\.pdf$/i,'').slice(0,26)||'Uploaded cert', meta: 'uploaded ORR cert', loa: null, polar, asymSpinnaker: polar.asymSpinnaker ?? false };
     BOAT_ORDER.push(id); populateBoatSelect(); setBoat(id);
     msg.textContent = '✓ polar loaded · '+polar.tws.length+' wind speeds × '+polar.twa.length+' angles';
     msg.className = 'certmsg ok';

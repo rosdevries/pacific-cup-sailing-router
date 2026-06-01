@@ -25,6 +25,9 @@ export function parseORR(lines) {
   let i = lines.findIndex(l => /Table of Boat Speed Polars/i.test(l));
   if (i < 0) throw new Error('No “Table of Boat Speed Polars” found — is this an ORR certificate?');
 
+  const preText = lines.slice(0, i).join(' ').toLowerCase();
+  const asymSpinnaker = /asym/.test(preText);
+
   let tws = null, beatA = null, beatS = null;
   const twa = [], speed = [];
 
@@ -50,5 +53,5 @@ export function parseORR(lines) {
   if (speedN.some(r => r.length !== n))
     throw new Error('A speed row has the wrong number of columns');
 
-  return { tws, twa, speed: speedN, beat: { angle: beatA, speed: beatS } };
+  return { tws, twa, speed: speedN, beat: { angle: beatA, speed: beatS }, asymSpinnaker };
 }
