@@ -26,7 +26,10 @@ export function parseORR(lines) {
   if (i < 0) throw new Error('No “Table of Boat Speed Polars” found — is this an ORR certificate?');
 
   const preText = lines.slice(0, i).join(' ').toLowerCase();
-  const asymSpinnaker = /asym/.test(preText);
+  // Prefer the explicit "Asymmetric Spin: Yes/No" field; fall back to bare /asym/ for older cert formats.
+  const asymYes = /asymmetric\s+spin[:\s]+yes/i.test(preText);
+  const asymNo  = /asymmetric\s+spin[:\s]+no/i.test(preText);
+  const asymSpinnaker = asymYes || (!asymNo && /asym/.test(preText));
 
   let tws = null, beatA = null, beatS = null;
   const twa = [], speed = [];
