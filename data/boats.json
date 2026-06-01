@@ -177,7 +177,7 @@
    "name": "TP 52",
    "meta": "SUMMER STORM \u00b7 ORC USA USA520",
    "loa": 15.848,
-   "asymSpinnaker": false,
+   "asymSpinnaker": true,
    "polar": {
     "tws": [
      4,
@@ -320,7 +320,7 @@
    "name": "SUN FAST 3300",
    "meta": "LOW PROFILE \u00b7 ORC USA USA70330",
    "loa": 10.0,
-   "asymSpinnaker": false,
+   "asymSpinnaker": true,
    "polar": {
     "tws": [
      4,
@@ -463,7 +463,7 @@
    "name": "Cape 31",
    "meta": "Full Send \u00b7 ORC USA USA7361",
    "loa": 9.573,
-   "asymSpinnaker": false,
+   "asymSpinnaker": true,
    "polar": {
     "tws": [
      6,
