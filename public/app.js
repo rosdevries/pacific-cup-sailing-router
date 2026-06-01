@@ -59,7 +59,7 @@ let MASK = null, LANDCANVAS = null;
 let SAMPLER = null, FIELD = 'synthetic', GRID = null;
 let DISP_T = 0, PINNED_T = 0, EPOCH0 = Math.floor(Date.now() / 1000), HORIZON_H = 192, MAXT = 384;
 let result = null, origin = SF;
-let CACHE = null, LIVE_OFF = false, reqSeq = 0;
+let CACHE = null, LOAD_CYCLE = null, LIVE_OFF = false, reqSeq = 0;
 let watchId = null, livePos = null, liveCog = null, liveSog = null, lastSolve = null, solving = false;
 
 // ---- Canvas ----
@@ -348,6 +348,26 @@ function draw() {
 // ---- Telemetry ----
 function sailedNm(tr) { let s = 0; for (let i = 1; i < tr.length; i++) s += distNm(tr[i-1], tr[i]); return s; }
 function fmtDur(h) { const d = Math.floor(h/24); return `${d}d ${Math.round(h-d*24)}h`; }
+function fmtShortDur(h) {
+  if (h < 1) return `~${Math.round(h * 60)}m`;
+  const hrs = Math.round(h), d = Math.floor(hrs / 24), rem = hrs % 24;
+  return d > 0 ? `~${d}d ${rem}h` : `~${hrs}h`;
+}
+function timeToNextSailChange() {
+  if (!result || result.track.length < 3) return null;
+  const tr = result.track;
+  const h0 = bearing(tr[0], tr[1]);
+  const e0 = getEnv(tr[1].lat, tr[1].lon, tr[1].t);
+  const twa0 = Math.abs(((e0.twd - h0 + 540) % 360) - 180);
+  const startCat = sailCat(twa0, e0.tws);
+  for (let i = 2; i < tr.length; i++) {
+    const h = bearing(tr[i - 1], tr[i]);
+    const e = getEnv(tr[i].lat, tr[i].lon, tr[i].t);
+    const twa = Math.abs(((e.twd - h + 540) % 360) - 180);
+    if (sailCat(twa, e.tws) !== startCat) return tr[i].t - tr[0].t;
+  }
+  return null;
+}
 function telemetry() {
   const el = document.getElementById('telemetry'); if (!result) { el.innerHTML = ''; return; }
   const gc = distNm(origin, DEST), sailed = sailedNm(result.track);
@@ -467,7 +487,7 @@ async function replan() {
   } catch { hardFail = true; }
   if (seq !== reqSeq) return;
   if (env) {
-    CACHE = { cycle: cyc, env }; applyEnv(env);
+    CACHE = { cycle: cyc, env }; LOAD_CYCLE = cyc; applyEnv(env);
     setStatus('◉ live · GFS + marine · '+cycLabel(cyc), 'live'); setupSlider(true);
   } else if (hardFail) {
     if (SAMPLER) { setStatus('◉ live · last forecast (refetch failed)', 'live'); }
@@ -601,9 +621,12 @@ function updateHud(note, noteCls) {
   const cog = (liveCog != null && !Number.isNaN(liveCog)) ? Math.round(liveCog)+'°' : '—';
   const sog = (liveSog != null && !Number.isNaN(liveSog)) ? (liveSog*1.943844).toFixed(1)+' kt' : '—';
   const eta = (result && result.reached) ? (result.hours/24).toFixed(1)+' d' : '—';
+  const sailChg = timeToNextSailChange();
+  const sailChgStr = sailChg != null ? fmtShortDur(sailChg) : '—';
   document.getElementById('hud-body').innerHTML =
     '<div class="hrow"><span class="k">optimal hdg</span></div>'
     +'<div class="hbig">'+(opt != null ? opt+'°T' : '—')+'</div>'
+    +'<div class="hrow"><span class="k">next sail change</span><span class="v">'+sailChgStr+'</span></div>'
     +'<div class="hrow"><span class="k">position</span><span class="v">'+dm(livePos.lat,'N','S')+'</span></div>'
     +'<div class="hrow"><span class="k"></span><span class="v">'+dm(livePos.lon,'E','W')+'</span></div>'
     +'<div class="hrow"><span class="k">COG · SOG</span><span class="v">'+cog+' · '+sog+'</span></div>'
@@ -651,6 +674,15 @@ function stopTracking() {
   draw();
 }
 document.getElementById('track').addEventListener('click', function() { watchId == null ? startTracking() : stopTracking(); });
+
+// ---- Stale forecast detection ----
+function checkStaleness() {
+  if (!LOAD_CYCLE || FIELD !== 'live') return;
+  document.getElementById('stale-bar').hidden = expectedCycle() <= LOAD_CYCLE;
+}
+setInterval(checkStaleness, 30 * 60 * 1000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkStaleness(); });
+document.getElementById('stale-reload').addEventListener('click', () => location.reload());
 
 // ---- Land mask load ----
 async function loadMask() {
