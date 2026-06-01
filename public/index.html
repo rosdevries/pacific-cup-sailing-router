@@ -35,7 +35,17 @@
     padding: 14px 16px;
     box-shadow: 0 10px 40px rgba(0,0,0,0.55);
   }
-  #controls { top: 18px; left: 18px; width: 248px; }
+  #controls { top: 18px; left: 18px; width: 248px; max-height: calc(100vh - 36px); overflow-y: auto;
+    scrollbar-width: thin; scrollbar-color: var(--hairline) transparent; }
+  #controls::-webkit-scrollbar { width: 4px; }
+  #controls::-webkit-scrollbar-thumb { background: var(--hairline); border-radius: 2px; }
+  .section { border-top: 1px solid rgba(255,255,255,0.07); margin-top: 8px; }
+  .section > summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between;
+    align-items: center; padding: 7px 0 4px; font-family: 'IBM Plex Mono', monospace; font-size: 9.5px;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--grid-text); user-select: none; }
+  .section > summary::marker, .section > summary::-webkit-details-marker { display: none; }
+  .section > summary::after { content: '▾'; font-size: 11px; transition: transform 0.18s; }
+  .section:not([open]) > summary::after { transform: rotate(-90deg); }
   #controls h1 {
     font-size: 13px; letter-spacing: 0.32em; text-transform: uppercase;
     margin: 0 0 2px; font-weight: 600; color: var(--cyan);
@@ -54,8 +64,8 @@
   .layer span { font-size: 13px; letter-spacing: 0.04em; }
   .swatch { width: 14px; height: 3px; border-radius: 2px; margin-left: auto; }
 
-  .hint { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.07);
-    font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; line-height: 1.55; color: var(--grid-text); }
+  .hint { margin-top: 10px; font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+    line-height: 1.5; color: var(--grid-text); }
   .hint b { color: var(--amber); font-weight: 500; }
   #reset { margin-top: 10px; width: 100%; background: transparent; color: var(--cyan);
     border: 1px solid var(--hairline); border-radius: 2px; padding: 7px; font-family: 'IBM Plex Mono', monospace;
@@ -180,20 +190,26 @@
   </div>
   <div class="certmsg" id="certmsg"></div>
   <div class="certhelp">Sailing a different boat? <a href="#" id="cert-help-link">Use its ORR certificate &#x2192;</a></div>
-  <div class="effrow">
-    <div class="efflabel"><span>POLAR EFFICIENCY</span><span id="efflabel">90%</span></div>
-    <input type="range" id="effslider" min="70" max="100" value="90" step="1">
-  </div>
-  <label class="layer"><input type="checkbox" id="t-wind" checked><span>Wind field</span><div class="swatch" style="background:var(--cyan)"></div></label>
-  <label class="layer"><input type="checkbox" id="t-iso" checked><span>Isochrones</span><div class="swatch" style="background:rgba(63,205,224,.5)"></div></label>
-  <label class="layer"><input type="checkbox" id="t-wave"><span>Wave height</span><div class="swatch" style="background:#3a6ea5"></div></label>
-  <label class="layer"><input type="checkbox" id="t-track" checked><span>Optimal route</span><div class="swatch" style="background:var(--amber)"></div></label>
-  <label class="layer"><input type="checkbox" id="t-land" checked><span>Land</span><div class="swatch" style="background:#7e9e8c"></div></label>
+  <details class="section" open>
+    <summary>Layers</summary>
+    <label class="layer"><input type="checkbox" id="t-wind" checked><span>Wind field</span><div class="swatch" style="background:var(--cyan)"></div></label>
+    <label class="layer"><input type="checkbox" id="t-iso" checked><span>Isochrones</span><div class="swatch" style="background:rgba(63,205,224,.5)"></div></label>
+    <label class="layer"><input type="checkbox" id="t-wave"><span>Wave height</span><div class="swatch" style="background:#3a6ea5"></div></label>
+    <label class="layer"><input type="checkbox" id="t-track" checked><span>Optimal route</span><div class="swatch" style="background:var(--amber)"></div></label>
+    <label class="layer"><input type="checkbox" id="t-land" checked><span>Land</span><div class="swatch" style="background:#7e9e8c"></div></label>
+  </details>
+  <details class="section" open>
+    <summary>Settings</summary>
+    <div class="effrow">
+      <div class="efflabel"><span>POLAR EFFICIENCY</span><span id="efflabel">90%</span></div>
+      <input type="range" id="effslider" min="70" max="100" value="90" step="1">
+    </div>
+    <div class="hint">Click open water to <b>re-route</b>. Dashed leg = beyond the <b>8-day wave horizon</b>.</div>
+  </details>
   <div id="timewrap" style="display:none">
     <div class="tlabel"><span>FORECAST TIME</span><span id="timelabel">+0d 0h</span></div>
     <input type="range" id="timeslider" min="0" max="384" value="0" step="3">
   </div>
-  <div class="hint">Click any open water to <b>re-route</b> from that position. The dashed leg is beyond the <b>8-day wave horizon</b>.</div>
   <button id="track">▶ Track my position</button>
   <button id="geo">Route from my location</button>
   <button id="reset">Reset to San Francisco</button>
