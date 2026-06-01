@@ -22,7 +22,7 @@ let POLAR_EFF = 1.00;
 let ASYM = false;
 let MASK = null, LANDCANVAS = null;
 let SAMPLER = null, FIELD = 'synthetic', GRID = null;
-let DISP_T = 0, EPOCH0 = Math.floor(Date.now() / 1000), HORIZON_H = 192, MAXT = 384;
+let DISP_T = 0, PINNED_T = 0, EPOCH0 = Math.floor(Date.now() / 1000), HORIZON_H = 192, MAXT = 384;
 let result = null, origin = SF;
 let CACHE = null, LIVE_OFF = false, reqSeq = 0;
 let watchId = null, livePos = null, liveCog = null, liveSog = null, lastSolve = null, solving = false;
@@ -316,10 +316,17 @@ function nearestOnTrack(mx, my) {
 
 // ---- Cursor interaction ----
 const cursorEl = document.getElementById('cursor'), routedot = document.getElementById('routedot');
+function restoreDispT() {
+  if (FIELD === 'live' && DISP_T !== PINNED_T) { DISP_T = PINNED_T; updateTimeLabel(); draw(); }
+}
 cv.addEventListener('mousemove', ev => {
   const near = document.getElementById('t-track').checked ? nearestOnTrack(ev.clientX, ev.clientY) : null;
   cursorEl.style.display = 'block'; cursorEl.style.left = (ev.clientX+14)+'px'; cursorEl.style.top = (ev.clientY+14)+'px';
   if (near && near.d < 14) {
+    if (FIELD === 'live') {
+      const snapT = Math.max(0, Math.min(MAXT, Math.round(near.t)));
+      if (snapT !== DISP_T) { DISP_T = snapT; updateTimeLabel(); draw(); }
+    }
     const e = getEnv(near.lat, near.lon, near.t), twa = angDiff(e.twd, near.heading);
     const tack = (((e.twd - near.heading + 540) % 360) - 180) > 0 ? 'STBD' : 'PORT';
     routedot.style.display = 'block'; routedot.style.left = near.x+'px'; routedot.style.top = near.y+'px';
@@ -328,6 +335,7 @@ cv.addEventListener('mousemove', ev => {
       + `<span class="lbl">sail</span> ${sailFor(twa, e.tws, ASYM)}<br>`
       + `<span class="lbl">ETA</span> +${fmtDur(near.t)}`;
   } else {
+    restoreDispT();
     routedot.style.display = 'none';
     const p = unpx(ev.clientX, ev.clientY), e = getEnv(p.lat, p.lon, DISP_T);
     cursorEl.innerHTML = `<span class="lbl">pos </span>${p.lat.toFixed(1)}°N ${Math.abs(p.lon).toFixed(1)}°W<br>`
@@ -335,7 +343,9 @@ cv.addEventListener('mousemove', ev => {
       + `<span class="lbl">sea </span> Hs ${e.waveHeight.toFixed(1)} m @ ${e.wavePeriod.toFixed(0)} s`;
   }
 });
-cv.addEventListener('mouseleave', () => { cursorEl.style.display = 'none'; routedot.style.display = 'none'; });
+cv.addEventListener('mouseleave', () => {
+  cursorEl.style.display = 'none'; routedot.style.display = 'none'; restoreDispT();
+});
 cv.addEventListener('click', ev => {
   const p = unpx(ev.clientX, ev.clientY);
   if (distNm(p, DEST) < 60) return;
@@ -363,9 +373,9 @@ function updateTimeLabel() {
 function setupSlider(live) {
   const w = document.getElementById('timewrap'); w.style.display = live ? 'block' : 'none';
   if (!live) return;
-  const s = document.getElementById('timeslider'); s.max = Math.floor(MAXT); s.step = 3; s.value = 0; DISP_T = 0; updateTimeLabel();
+  const s = document.getElementById('timeslider'); s.max = Math.floor(MAXT); s.step = 3; s.value = 0; DISP_T = 0; PINNED_T = 0; updateTimeLabel();
 }
-document.getElementById('timeslider').addEventListener('input', e => { DISP_T = +e.target.value; updateTimeLabel(); draw(); });
+document.getElementById('timeslider').addEventListener('input', e => { PINNED_T = +e.target.value; DISP_T = PINNED_T; updateTimeLabel(); draw(); });
 document.getElementById('effslider').addEventListener('input', e => { document.getElementById('efflabel').textContent = e.target.value+'%'; });
 document.getElementById('effslider').addEventListener('change', e => { POLAR_EFF = +e.target.value / 100; compute(); });
 
