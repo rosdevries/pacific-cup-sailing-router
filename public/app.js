@@ -545,6 +545,33 @@ async function loadMask() {
   } catch (e) { console.warn('[app] land mask unavailable:', e.message); }
 }
 
+// ---- Draggable panels ----
+function makeDraggable(el) {
+  let dx = 0, dy = 0;
+  function applyDrag(cx, cy, sx, sy) {
+    dx = cx - sx; dy = cy - sy;
+    el.style.transform = `translate(${dx}px,${dy}px)`;
+  }
+  el.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const sx = e.clientX - dx, sy = e.clientY - dy;
+    el.style.cursor = 'grabbing';
+    const onMove = e => applyDrag(e.clientX, e.clientY, sx, sy);
+    const onUp = () => { el.style.cursor = 'grab'; document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+  el.addEventListener('touchstart', e => {
+    const t = e.touches[0], sx = t.clientX - dx, sy = t.clientY - dy;
+    const onMove = e => { const t = e.touches[0]; applyDrag(t.clientX, t.clientY, sx, sy); };
+    const onEnd = () => { el.removeEventListener('touchmove', onMove); el.removeEventListener('touchend', onEnd); };
+    el.addEventListener('touchmove', onMove, { passive: true });
+    el.addEventListener('touchend', onEnd);
+  }, { passive: true });
+}
+makeDraggable(document.getElementById('telemetry'));
+
 // ---- Init ----
 setupBoats();
 resize();
