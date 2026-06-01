@@ -16,7 +16,7 @@ const DEST_NAME = 'Kaneohe Bay';
 
 // ---- Mutable state ----
 let POLAR = BOATS.sc40.polar;
-let POLAR_EFF = 0.90;
+let POLAR_EFF = 1.00;
 let MASK = null, LANDCANVAS = null;
 let SAMPLER = null, FIELD = 'synthetic', GRID = null;
 let DISP_T = 0, EPOCH0 = Math.floor(Date.now() / 1000), HORIZON_H = 192, MAXT = 384;
