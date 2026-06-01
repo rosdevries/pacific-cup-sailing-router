@@ -215,7 +215,12 @@ function drawGybes() {
     ctx.fill(); ctx.stroke();
   });
 }
-function sailCat(twa) { return twa < 90 ? 'up' : twa < 150 ? 'reach' : 'run'; }
+// Three sail-plan buckets based on sailFor() output — broad reach and running
+// are both 'kite' so no marker fires between them.
+function sailCat(twa, tws) {
+  if (sailFor(twa, tws).includes('Spinnaker')) return 'kite';
+  return twa < 90 ? 'upwind' : 'reach';
+}
 function drawSailChanges() {
   if (!result || result.track.length < 2) return;
   const tr = result.track;
@@ -225,21 +230,21 @@ function drawSailChanges() {
     const h = bearing(tr[i - 1], tr[i]);
     const e = getEnv(tr[i].lat, tr[i].lon, tr[i].t);
     const twa = Math.abs(((e.twd - h + 540) % 360) - 180);
-    const cat = sailCat(twa);
+    const cat = sailCat(twa, e.tws);
     if (prev !== null && cat !== prev) {
       const [x, y] = px(tr[i].lat, tr[i].lon);
       ctx.fillStyle = 'rgba(8,22,31,0.92)';
       ctx.strokeStyle = 'rgba(190,220,235,0.85)';
-      if (cat === 'up') {
-        // Triangle — upwind
+      if (cat === 'upwind') {
+        // Triangle — upwind (Main + Genoa)
         ctx.beginPath(); ctx.moveTo(x, y - 6); ctx.lineTo(x + 5.5, y + 4); ctx.lineTo(x - 5.5, y + 4); ctx.closePath();
         ctx.fill(); ctx.stroke();
       } else if (cat === 'reach') {
-        // Horizontal bar — reaching
+        // Horizontal bar — reaching (Main + Genoa/Jib, no kite)
         ctx.beginPath(); ctx.rect(x - 6, y - 2.5, 12, 5);
         ctx.fill(); ctx.stroke();
       } else {
-        // Circle — spinnaker / running
+        // Circle — kite up (Spinnaker, any angle)
         ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2);
         ctx.fill(); ctx.stroke();
       }
