@@ -10,7 +10,42 @@ const { boats: BOATS, boatOrder: BOAT_ORDER } = await fetch('/data/boats.json').
 const SF   = { lat: 37.60,   lon: -122.90   };
 const DEST = { lat: 21.4806, lon: -157.7725 };
 // Render a wider area than the land-mask coverage so Hawaii clears the left controls panel
-const RVIEW = { latMin: 14, latMax: 44.5, lonMin: -175, lonMax: -113 };
+const RVIEW = { latMin: 14, latMax: 44.5, lonMin: -175, lonMax: -108 };
+
+// Approximate Pacific coastline, Oregon → Cabo San Lucas, traced N→S.
+// Points east of RVIEW.lonMax are clamped to the right screen edge when drawn.
+const CALIFORNIA_COAST = [
+  [44.5, -124.2], // Oregon coast at map top edge
+  [42.0, -124.5], // Cape Ferrelo / OR–CA border
+  [40.4, -124.4], // Cape Mendocino
+  [38.9, -123.7], // Fort Bragg
+  [38.3, -123.1], // Bodega Bay
+  [38.0, -122.9], // Point Reyes
+  [37.9, -122.7], // Marin Headlands / Golden Gate
+  [37.8, -122.5], // San Francisco
+  [37.5, -122.5], // Pacifica
+  [37.0, -122.0], // Santa Cruz
+  [36.6, -121.9], // Monterey
+  [36.2, -121.8], // Point Sur
+  [35.7, -121.3], // Morro Bay
+  [35.1, -120.9], // Point San Luis
+  [34.5, -120.5], // Point Conception
+  [34.4, -119.7], // Santa Barbara
+  [34.0, -118.5], // Santa Monica
+  [33.7, -118.3], // San Pedro / LA Harbour
+  [33.4, -117.8], // Newport Beach
+  [33.2, -117.5], // San Clemente
+  [32.7, -117.2], // San Diego
+  [32.5, -117.1], // Tijuana
+  [31.9, -116.7], // Ensenada
+  [30.6, -116.1], // San Quintín
+  [30.0, -115.8], // Punta Baja
+  [27.9, -115.1], // Punta Eugenia
+  [26.8, -113.8], // mid-Baja
+  [24.5, -111.5], // southern Baja (east of screen, clamped)
+  [23.0, -109.9], // Cabo San Lucas (clamped)
+  [14.0, -108.0], // southern boundary (clamped)
+];
 const HIGH = { lat: 37, lon: -147 };
 const WIND_STOPS = [[0,[43,74,90]],[8,[46,154,166]],[14,[79,208,199]],[20,[255,209,102]],[28,[255,107,94]]];
 const RESOLVE_NM = 1.5, RESOLVE_MS = 60000;
@@ -94,15 +129,31 @@ function drawOcean() {
   const g = ctx.createRadialGradient(W*0.5, H*0.42, 80, W*0.5, H*0.5, Math.max(W,H)*0.75);
   g.addColorStop(0, '#0c2230'); g.addColorStop(1, '#061019'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 }
+function drawCalifornia() {
+  ctx.save();
+  ctx.beginPath();
+  let first = true;
+  for (const [lat, lon] of CALIFORNIA_COAST) {
+    const [x, y] = px(lat, lon);
+    const cx = Math.min(W + 4, x);
+    if (first) { ctx.moveTo(cx, y); first = false; }
+    else ctx.lineTo(cx, y);
+  }
+  // Close via bottom-right and top-right corners to fill all inland area
+  ctx.lineTo(W + 4, H + 4);
+  ctx.lineTo(W + 4, -4);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(28,40,34,0.95)';
+  ctx.fill();
+  ctx.restore();
+}
 function drawLand() {
   if (!LANDCANVAS) return;
   // Land mask PNG covers VIEW; project it into the wider RVIEW canvas
   const [lx, ty] = px(VIEW.latMax, VIEW.lonMin);
   const [rx, by] = px(VIEW.latMin, VIEW.lonMax);
   ctx.drawImage(LANDCANVAS, lx, ty, rx - lx, by - ty);
-  // California/Baja continues east of the mask — fill to the screen edge
-  ctx.fillStyle = 'rgba(28,40,34,0.95)';
-  ctx.fillRect(rx, 0, W - rx, H);
+  drawCalifornia();
 }
 function drawGraticule() {
   ctx.strokeStyle = 'rgba(86,152,168,0.14)'; ctx.fillStyle = '#4a7d8a';
@@ -111,7 +162,7 @@ function drawGraticule() {
     const [, y] = px(lat, VIEW.lonMin);
     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); ctx.fillText(lat+'°N', 6, y-4);
   }
-  for (let lon = -165; lon <= -120; lon += 5) {
+  for (let lon = -165; lon <= -110; lon += 5) {
     const [x] = px(VIEW.latMin, lon);
     ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); ctx.fillText(Math.abs(lon)+'°W', x+4, H-8);
   }
