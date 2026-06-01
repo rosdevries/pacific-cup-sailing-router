@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<title>Passage Router — SF → Honolulu</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root {
+    --abyss: #061019;
+    --deep: #0a1c28;
+    --grid: rgba(86, 152, 168, 0.16);
+    --grid-text: #4a7d8a;
+    --ink: #cfe8ef;
+    --cyan: #3fcde0;
+    --amber: #ffb13b;
+    --coral: #ff6b5e;
+    --green: #5fe39a;
+    --panel: rgba(8, 22, 31, 0.82);
+    --hairline: rgba(63, 205, 224, 0.28);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--abyss); overflow: hidden; }
+  body { font-family: 'Saira', sans-serif; color: var(--ink); }
+  canvas { display: block; position: fixed; inset: 0; cursor: crosshair; }
+
+  .panel {
+    position: fixed; z-index: 5;
+    background: var(--panel);
+    border: 1px solid var(--hairline);
+    backdrop-filter: blur(8px);
+    border-radius: 3px;
+    padding: 14px 16px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.55);
+  }
+  #controls { top: 18px; left: 18px; width: 248px; }
+  #controls h1 {
+    font-size: 13px; letter-spacing: 0.32em; text-transform: uppercase;
+    margin: 0 0 2px; font-weight: 600; color: var(--cyan);
+  }
+  #controls .sub {
+    font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+    letter-spacing: 0.08em; color: var(--grid-text); margin-bottom: 14px;
+  }
+  .layer { display: flex; align-items: center; gap: 9px; padding: 4px 0; cursor: pointer; user-select: none; }
+  .layer input { appearance: none; width: 30px; height: 16px; border-radius: 9px;
+    background: rgba(255,255,255,0.08); position: relative; transition: background .2s; outline: none; cursor: pointer; border: 1px solid var(--hairline); }
+  .layer input:checked { background: rgba(63,205,224,0.32); }
+  .layer input::after { content: ''; position: absolute; top: 1px; left: 1px; width: 12px; height: 12px;
+    border-radius: 50%; background: #7d9aa3; transition: transform .2s, background .2s; }
+  .layer input:checked::after { transform: translateX(14px); background: var(--cyan); }
+  .layer span { font-size: 13px; letter-spacing: 0.04em; }
+  .swatch { width: 14px; height: 3px; border-radius: 2px; margin-left: auto; }
+
+  .hint { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.07);
+    font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; line-height: 1.55; color: var(--grid-text); }
+  .hint b { color: var(--amber); font-weight: 500; }
+  #reset { margin-top: 10px; width: 100%; background: transparent; color: var(--cyan);
+    border: 1px solid var(--hairline); border-radius: 2px; padding: 7px; font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; cursor: pointer; transition: background .15s; }
+  #reset:hover { background: rgba(63,205,224,0.1); }
+  #geo { margin-top: 12px; width: 100%; background: var(--cyan); color: var(--abyss);
+    border: 1px solid var(--cyan); border-radius: 2px; padding: 8px; font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; cursor: pointer; transition: filter .15s; font-weight: 500; }
+  #geo:hover { filter: brightness(1.12); }
+  #track { margin-top: 12px; width: 100%; background: transparent; color: var(--cyan);
+    border: 1px solid var(--hairline); border-radius: 2px; padding: 8px; font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; cursor: pointer; transition: background .15s; }
+  #track:hover { background: rgba(63,205,224,0.1); }
+  #track.active { background: var(--amber); color: var(--abyss); border-color: var(--amber); font-weight: 500; }
+  #livehud { top: 18px; right: 18px; width: 198px; font-family: 'IBM Plex Mono', monospace; }
+  #livehud .hud-title { display: flex; align-items: center; gap: 7px; font-family: 'Saira', sans-serif; font-weight: 600;
+    font-size: 12px; letter-spacing: 0.08em; color: var(--cyan); margin-bottom: 10px; text-transform: uppercase; }
+  #livehud .hud-pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: hudpulse 1.6s infinite; }
+  @keyframes hudpulse { 0%{box-shadow:0 0 0 0 rgba(95,227,154,0.5);} 70%{box-shadow:0 0 0 7px rgba(95,227,154,0);} 100%{box-shadow:0 0 0 0 rgba(95,227,154,0);} }
+  #livehud .hrow { display: flex; justify-content: space-between; gap: 10px; font-size: 11px; padding: 2.5px 0; }
+  #livehud .hrow .k { color: var(--grid-text); text-transform: uppercase; font-size: 9.5px; letter-spacing: 0.05em; align-self: center; }
+  #livehud .hrow .v { color: var(--ink); }
+  #livehud .hbig { font-size: 21px; color: var(--cyan); letter-spacing: 0.02em; margin: 2px 0 7px; font-weight: 500; }
+  #livehud .hnote { font-size: 10px; color: var(--grid-text); margin-top: 9px; line-height: 1.4; }
+  #livehud .hnote.err { color: var(--amber); }
+  #boatdot { position: fixed; z-index: 6; pointer-events: none; width: 14px; height: 14px; margin: -7px 0 0 -7px;
+    border-radius: 50%; background: var(--cyan); border: 2px solid #061019; animation: boatpulse 1.6s infinite; }
+  @keyframes boatpulse { 0%{box-shadow:0 0 0 0 rgba(63,205,224,0.55);} 70%{box-shadow:0 0 0 13px rgba(63,205,224,0);} 100%{box-shadow:0 0 0 0 rgba(63,205,224,0);} }
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(3,8,13,0.66); backdrop-filter: blur(2px);
+    display: flex; align-items: center; justify-content: center; z-index: 50; }
+  .modal-backdrop[hidden] { display: none; }
+  .modal { background: linear-gradient(180deg, var(--deep), var(--abyss)); border: 1px solid rgba(63,205,224,0.28);
+    border-radius: 10px; padding: 18px 20px 16px; width: min(360px, 88vw); box-shadow: 0 18px 50px rgba(0,0,0,0.55); }
+  .modal-title { font-family: 'Saira', sans-serif; font-weight: 600; color: var(--cyan); font-size: 15px; margin-bottom: 12px; }
+  .geo-row { display: flex; justify-content: space-between; gap: 16px; align-items: baseline; padding: 4px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .geo-row:last-of-type { border-bottom: 0; }
+  .geo-row .lbl { color: var(--grid-text); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .geo-row .val { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--ink); text-align: right; }
+  .geo-row .val.big { color: var(--cyan); font-size: 15px; }
+  .geo-note { font-family: 'IBM Plex Mono', monospace; font-size: 11px; margin-top: 13px; line-height: 1.45; }
+  .geo-note.ok { color: var(--green); } .geo-note.warn { color: var(--amber); }
+  .geo-note.err { color: var(--amber); } .geo-note.wait { color: var(--grid-text); }
+  #geo-close { margin-top: 16px; width: 100%; background: transparent; color: var(--cyan);
+    border: 1px solid var(--hairline); border-radius: 2px; padding: 8px; font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; cursor: pointer; }
+  #geo-close:hover { background: rgba(63,205,224,0.1); }
+  #controls .status { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.04em; margin: 8px 0 2px; }
+  .status.live { color: var(--green); } .status.demo { color: var(--amber); } .status.load { color: var(--grid-text); }
+  #controls .boatrow { display: flex; gap: 6px; margin: 7px 0 3px; }
+  #controls select#boat { flex: 1; min-width: 0; background: rgba(255,255,255,0.05); color: var(--ink);
+    border: 1px solid rgba(255,255,255,0.14); border-radius: 5px; padding: 5px 6px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; }
+  #controls .upload { white-space: nowrap; cursor: pointer; background: rgba(63,205,224,0.10); color: var(--cyan);
+    border: 1px solid rgba(63,205,224,0.35); border-radius: 5px; padding: 5px 9px; display: flex; align-items: center;
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; }
+  #controls .upload:hover { background: rgba(63,205,224,0.18); }
+  #controls .certmsg { font-family: 'IBM Plex Mono', monospace; font-size: 10px; min-height: 12px; margin-bottom: 2px; color: var(--grid-text); }
+  #controls .certmsg.ok { color: var(--green); } #controls .certmsg.err { color: var(--amber); }
+  #controls .effrow { margin-top: 11px; }
+  #controls .efflabel { display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--grid-text); margin-bottom: 5px; letter-spacing: 0.04em; }
+  #controls #effslider { width: 100%; accent-color: var(--cyan); cursor: pointer; }
+  #timewrap { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.07); }
+  #timewrap .tlabel { display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--grid-text); margin-bottom: 6px; }
+  #timewrap input[type=range] { width: 100%; accent-color: var(--cyan); cursor: pointer; }
+
+  #telemetry { bottom: 18px; left: 18px; min-width: 248px; font-family: 'IBM Plex Mono', monospace; }
+  #telemetry .row { display: flex; justify-content: space-between; font-size: 11px; padding: 2px 0; letter-spacing: 0.03em; }
+  #telemetry .row .k { color: var(--grid-text); }
+  #telemetry .row .v { color: var(--ink); }
+  #telemetry .big { font-size: 22px; color: var(--amber); letter-spacing: 0.02em; margin: 2px 0 8px; font-weight: 500; }
+
+  #cursor { position: fixed; z-index: 6; pointer-events: none; background: var(--panel);
+    border: 1px solid var(--hairline); border-radius: 2px; padding: 6px 9px; font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px; line-height: 1.5; color: var(--ink); display: none; white-space: nowrap; }
+  #cursor .lbl { color: var(--grid-text); }
+  #routedot { position: fixed; z-index: 6; pointer-events: none; width: 11px; height: 11px;
+    border-radius: 50%; border: 2px solid var(--cyan); background: rgba(63,205,224,0.25);
+    transform: translate(-50%,-50%); display: none; box-shadow: 0 0 10px rgba(63,205,224,0.65); }
+
+  .legend { bottom: 18px; right: 18px; padding: 11px 14px; }
+  .legend .title { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--grid-text); margin-bottom: 7px; }
+  .legend .bar { width: 168px; height: 9px; border-radius: 2px; margin-bottom: 4px; }
+  .legend .ticks { display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px; color: var(--grid-text); }
+
+  /* Open-Meteo CC-BY 4.0 attribution */
+  #attribution { position: fixed; bottom: 6px; left: 50%; transform: translateX(-50%);
+    font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--grid-text);
+    white-space: nowrap; z-index: 5; }
+  #attribution a { color: var(--grid-text); text-decoration: none; }
+  #attribution a:hover { color: var(--cyan); }
+</style>
+</head>
+<body>
+
+<canvas id="map"></canvas>
+
+<div class="panel" id="controls">
+  <h1>Passage Router</h1>
+  <div class="sub" id="boatsub">SANTA CRUZ 40 · ORR US43259</div>
+  <div class="status" id="status">◌ initializing…</div>
+  <div class="boatrow">
+    <select id="boat" title="Boat polar"></select>
+    <label class="upload" for="cert">＋ ORR cert</label>
+    <input type="file" id="cert" accept="application/pdf" hidden>
+  </div>
+  <div class="certmsg" id="certmsg"></div>
+  <div class="effrow">
+    <div class="efflabel"><span>POLAR EFFICIENCY</span><span id="efflabel">90%</span></div>
+    <input type="range" id="effslider" min="70" max="100" value="90" step="1">
+  </div>
+  <label class="layer"><input type="checkbox" id="t-wind" checked><span>Wind field</span><div class="swatch" style="background:var(--cyan)"></div></label>
+  <label class="layer"><input type="checkbox" id="t-iso" checked><span>Isochrones</span><div class="swatch" style="background:rgba(63,205,224,.5)"></div></label>
+  <label class="layer"><input type="checkbox" id="t-wave"><span>Wave height</span><div class="swatch" style="background:#3a6ea5"></div></label>
+  <label class="layer"><input type="checkbox" id="t-track" checked><span>Optimal route</span><div class="swatch" style="background:var(--amber)"></div></label>
+  <label class="layer"><input type="checkbox" id="t-land" checked><span>Land</span><div class="swatch" style="background:#7e9e8c"></div></label>
+  <div id="timewrap" style="display:none">
+    <div class="tlabel"><span>FORECAST TIME</span><span id="timelabel">+0d 0h</span></div>
+    <input type="range" id="timeslider" min="0" max="384" value="0" step="3">
+  </div>
+  <div class="hint">Click any open water to <b>re-route</b> from that position. The dashed leg is beyond the <b>8-day wave horizon</b>.</div>
+  <button id="track">▶ Track my position</button>
+  <button id="geo">Route from my location</button>
+  <button id="reset">Reset to San Francisco</button>
+</div>
+
+<div class="panel" id="telemetry"></div>
+<div class="modal-backdrop" id="geo-modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Route from my location">
+    <div class="modal-title">Route from my location</div>
+    <div id="geo-body"></div>
+    <button id="geo-close">Close</button>
+  </div>
+</div>
+<div class="panel legend">
+  <div class="title">True wind speed</div>
+  <div class="bar" id="legend-bar"></div>
+  <div class="ticks"><span>0</span><span>10</span><span>20</span><span>28+ kt</span></div>
+</div>
+<div id="cursor"></div>
+<div id="routedot"></div>
+<div class="panel" id="livehud" hidden>
+  <div class="hud-title"><span class="hud-pulse"></span> Live track</div>
+  <div id="hud-body"></div>
+</div>
+<div id="boatdot" hidden></div>
+
+<!-- CC-BY 4.0 attribution required by Open-Meteo free tier -->
+<div id="attribution">
+  Weather data by <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>
+  · Source: <a href="https://www.dwd.de/" target="_blank" rel="noopener">DWD</a>
+  · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>
+</div>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>

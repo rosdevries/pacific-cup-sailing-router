@@ -1,0 +1,17 @@
+{
+  "name": "pacific-cup-sailing-router",
+  "version": "0.1.0",
+  "description": "Weather-routing app for the Pacific Cup (San Francisco to Kaneohe Bay).",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev":      "node server/index.js",
+    "start":    "node server/index.js",
+    "prefetch": "node scripts/prefetch.js",
+    "test":     "node --test"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "pngjs": "^7.0.0"
+  }
+}

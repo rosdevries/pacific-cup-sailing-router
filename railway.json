@@ -1,0 +1,15 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": { "builder": "NIXPACKS" },
+  "deploy": {
+    "startCommand": "npm start",
+    "restartPolicyType": "ON_FAILURE",
+    "healthcheckPath": "/health"
+  },
+  "_notes": [
+    "Attach a persistent VOLUME to this service and mount it at /data/cache; set CACHE_DIR=/data/cache.",
+    "Add a SECOND service (or a Railway cron schedule) that runs `npm run prefetch` every 6 hours,",
+    "sharing the same volume, so the forecast is refreshed once per GFS cycle for all users.",
+    "Railway provides HTTPS automatically, which the browser Geolocation API requires."
+  ]
+}

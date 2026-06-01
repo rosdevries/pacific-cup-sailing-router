@@ -1,0 +1,744 @@
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<title>Passage Router — SF → Honolulu</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root {
+    --abyss: #061019;
+    --deep: #0a1c28;
+    --grid: rgba(86, 152, 168, 0.16);
+    --grid-text: #4a7d8a;
+    --ink: #cfe8ef;
+    --cyan: #3fcde0;
+    --amber: #ffb13b;
+    --coral: #ff6b5e;
+    --green: #5fe39a;
+    --panel: rgba(8, 22, 31, 0.82);
+    --hairline: rgba(63, 205, 224, 0.28);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--abyss); overflow: hidden; }
+  body { font-family: 'Saira', sans-serif; color: var(--ink); }
+  canvas { display: block; position: fixed; inset: 0; cursor: crosshair; }
+
+  .panel {
+    position: fixed; z-index: 5;
+    background: var(--panel);
+    border: 1px solid var(--hairline);
+    backdrop-filter: blur(8px);
+    border-radius: 3px;
+    padding: 14px 16px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.55);
+  }
+  #controls { top: 18px; left: 18px; width: 248px; }
+  #controls h1 {
+    font-size: 13px; letter-spacing: 0.32em; text-transform: uppercase;
+    margin: 0 0 2px; font-weight: 600; color: var(--cyan);
+  }
+  #controls .sub {
+    font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+    letter-spacing: 0.08em; color: var(--grid-text); margin-bottom: 14px;
+  }
+  .layer { display: flex; align-items: center; gap: 9px; padding: 4px 0; cursor: pointer; user-select: none; }
+  .layer input { appearance: none; width: 30px; height: 16px; border-radius: 9px;
+    background: rgba(255,255,255,0.08); position: relative; transition: background .2s; outline: none; cursor: pointer; border: 1px solid var(--hairline); }
+  .layer input:checked { background: rgba(63,205,224,0.32); }
+  .layer input::after { content: ''; position: absolute; top: 1px; left: 1px; width: 12px; height: 12px;
+    border-radius: 50%; background: #7d9aa3; transition: transform .2s, background .2s; }
+  .layer input:checked::after { transform: translateX(14px); background: var(--cyan); }
+  .layer span { font-size: 13px; letter-spacing: 0.04em; }
+  .swatch { width: 14px; height: 3px; border-radius: 2px; margin-left: auto; }
+
+  .hint { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.07);
+    font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; line-height: 1.55; color: var(--grid-text); }
+  .hint b { color: var(--amber); font-weight: 500; }
+  #reset { margin-top: 10px; width: 100%; background: transparent; color: var(--cyan);
+    border: 1px solid var(--hairline); border-radius: 2px; padding: 7px; font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; cursor: pointer; transition: background .15s; }
+  #reset:hover { background: rgba(63,205,224,0.1); }
+  #geo { margin-top: 12px; width: 100%; background: var(--cyan); color: var(--abyss);
+    border: 1px solid var(--cyan); border-radius: 2px; padding: 8px; font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; cursor: pointer; transition: filter .15s; font-weight: 500; }
+  #geo:hover { filter: brightness(1.12); }
+  #track { margin-top: 12px; width: 100%; background: transparent; color: var(--cyan);
+    border: 1px solid var(--hairline); border-radius: 2px; padding: 8px; font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; cursor: pointer; transition: background .15s; }
+  #track:hover { background: rgba(63,205,224,0.1); }
+  #track.active { background: var(--amber); color: var(--abyss); border-color: var(--amber); font-weight: 500; }
+  #livehud { top: 18px; right: 18px; width: 198px; font-family: 'IBM Plex Mono', monospace; }
+  #livehud .hud-title { display: flex; align-items: center; gap: 7px; font-family: 'Saira', sans-serif; font-weight: 600;
+    font-size: 12px; letter-spacing: 0.08em; color: var(--cyan); margin-bottom: 10px; text-transform: uppercase; }
+  #livehud .hud-pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: hudpulse 1.6s infinite; }
+  @keyframes hudpulse { 0%{box-shadow:0 0 0 0 rgba(95,227,154,0.5);} 70%{box-shadow:0 0 0 7px rgba(95,227,154,0);} 100%{box-shadow:0 0 0 0 rgba(95,227,154,0);} }
+  #livehud .hrow { display: flex; justify-content: space-between; gap: 10px; font-size: 11px; padding: 2.5px 0; }
+  #livehud .hrow .k { color: var(--grid-text); text-transform: uppercase; font-size: 9.5px; letter-spacing: 0.05em; align-self: center; }
+  #livehud .hrow .v { color: var(--ink); }
+  #livehud .hbig { font-size: 21px; color: var(--cyan); letter-spacing: 0.02em; margin: 2px 0 7px; font-weight: 500; }
+  #livehud .hnote { font-size: 10px; color: var(--grid-text); margin-top: 9px; line-height: 1.4; }
+  #livehud .hnote.err { color: var(--amber); }
+  #boatdot { position: fixed; z-index: 6; pointer-events: none; width: 14px; height: 14px; margin: -7px 0 0 -7px;
+    border-radius: 50%; background: var(--cyan); border: 2px solid #061019; animation: boatpulse 1.6s infinite; }
+  @keyframes boatpulse { 0%{box-shadow:0 0 0 0 rgba(63,205,224,0.55);} 70%{box-shadow:0 0 0 13px rgba(63,205,224,0);} 100%{box-shadow:0 0 0 0 rgba(63,205,224,0);} }
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(3,8,13,0.66); backdrop-filter: blur(2px);
+    display: flex; align-items: center; justify-content: center; z-index: 50; }
+  .modal-backdrop[hidden] { display: none; }
+  .modal { background: linear-gradient(180deg, var(--deep), var(--abyss)); border: 1px solid rgba(63,205,224,0.28);
+    border-radius: 10px; padding: 18px 20px 16px; width: min(360px, 88vw); box-shadow: 0 18px 50px rgba(0,0,0,0.55); }
+  .modal-title { font-family: 'Saira', sans-serif; font-weight: 600; color: var(--cyan); font-size: 15px; margin-bottom: 12px; }
+  .geo-row { display: flex; justify-content: space-between; gap: 16px; align-items: baseline; padding: 4px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .geo-row:last-of-type { border-bottom: 0; }
+  .geo-row .lbl { color: var(--grid-text); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .geo-row .val { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--ink); text-align: right; }
+  .geo-row .val.big { color: var(--cyan); font-size: 15px; }
+  .geo-note { font-family: 'IBM Plex Mono', monospace; font-size: 11px; margin-top: 13px; line-height: 1.45; }
+  .geo-note.ok { color: var(--green); } .geo-note.warn { color: var(--amber); }
+  .geo-note.err { color: var(--amber); } .geo-note.wait { color: var(--grid-text); }
+  #geo-close { margin-top: 16px; width: 100%; background: transparent; color: var(--cyan);
+    border: 1px solid var(--hairline); border-radius: 2px; padding: 8px; font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; cursor: pointer; }
+  #geo-close:hover { background: rgba(63,205,224,0.1); }
+  #controls .status { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.04em; margin: 8px 0 2px; }
+  .status.live { color: var(--green); } .status.demo { color: var(--amber); } .status.load { color: var(--grid-text); }
+  #controls .boatrow { display: flex; gap: 6px; margin: 7px 0 3px; }
+  #controls select#boat { flex: 1; min-width: 0; background: rgba(255,255,255,0.05); color: var(--ink);
+    border: 1px solid rgba(255,255,255,0.14); border-radius: 5px; padding: 5px 6px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; }
+  #controls .upload { white-space: nowrap; cursor: pointer; background: rgba(63,205,224,0.10); color: var(--cyan);
+    border: 1px solid rgba(63,205,224,0.35); border-radius: 5px; padding: 5px 9px; display: flex; align-items: center;
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; }
+  #controls .upload:hover { background: rgba(63,205,224,0.18); }
+  #controls .certmsg { font-family: 'IBM Plex Mono', monospace; font-size: 10px; min-height: 12px; margin-bottom: 2px; color: var(--grid-text); }
+  #controls .certmsg.ok { color: var(--green); } #controls .certmsg.err { color: var(--amber); }
+  #controls .effrow { margin-top: 11px; }
+  #controls .efflabel { display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--grid-text); margin-bottom: 5px; letter-spacing: 0.04em; }
+  #controls #effslider { width: 100%; accent-color: var(--cyan); cursor: pointer; }
+  #timewrap { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.07); }
+  #timewrap .tlabel { display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--grid-text); margin-bottom: 6px; }
+  #timewrap input[type=range] { width: 100%; accent-color: var(--cyan); cursor: pointer; }
+
+  #telemetry { bottom: 18px; left: 18px; min-width: 248px; font-family: 'IBM Plex Mono', monospace; }
+  #telemetry .row { display: flex; justify-content: space-between; font-size: 11px; padding: 2px 0; letter-spacing: 0.03em; }
+  #telemetry .row .k { color: var(--grid-text); }
+  #telemetry .row .v { color: var(--ink); }
+  #telemetry .big { font-size: 22px; color: var(--amber); letter-spacing: 0.02em; margin: 2px 0 8px; font-weight: 500; }
+
+  #cursor { position: fixed; z-index: 6; pointer-events: none; background: var(--panel);
+    border: 1px solid var(--hairline); border-radius: 2px; padding: 6px 9px; font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px; line-height: 1.5; color: var(--ink); display: none; white-space: nowrap; }
+  #cursor .lbl { color: var(--grid-text); }
+  #routedot { position: fixed; z-index: 6; pointer-events: none; width: 11px; height: 11px;
+    border-radius: 50%; border: 2px solid var(--cyan); background: rgba(63,205,224,0.25);
+    transform: translate(-50%,-50%); display: none; box-shadow: 0 0 10px rgba(63,205,224,0.65); }
+
+  .legend { bottom: 18px; right: 18px; padding: 11px 14px; }
+  .legend .title { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--grid-text); margin-bottom: 7px; }
+  .legend .bar { width: 168px; height: 9px; border-radius: 2px; margin-bottom: 4px; }
+  .legend .ticks { display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px; color: var(--grid-text); }
+</style>
+
+<canvas id="map"></canvas>
+
+<div class="panel" id="controls">
+  <h1>Passage Router</h1>
+  <div class="sub" id="boatsub">SANTA CRUZ 40 · ORR US43259</div>
+  <div class="status" id="status">◌ initializing…</div>
+  <div class="boatrow">
+    <select id="boat" title="Boat polar"></select>
+    <label class="upload" for="cert">＋ ORR cert</label>
+    <input type="file" id="cert" accept="application/pdf" hidden>
+  </div>
+  <div class="certmsg" id="certmsg"></div>
+  <div class="effrow">
+    <div class="efflabel"><span>POLAR EFFICIENCY</span><span id="efflabel">90%</span></div>
+    <input type="range" id="effslider" min="70" max="100" value="90" step="1">
+  </div>
+  <label class="layer"><input type="checkbox" id="t-wind" checked><span>Wind field</span><div class="swatch" style="background:var(--cyan)"></div></label>
+  <label class="layer"><input type="checkbox" id="t-iso" checked><span>Isochrones</span><div class="swatch" style="background:rgba(63,205,224,.5)"></div></label>
+  <label class="layer"><input type="checkbox" id="t-wave"><span>Wave height</span><div class="swatch" style="background:#3a6ea5"></div></label>
+  <label class="layer"><input type="checkbox" id="t-track" checked><span>Optimal route</span><div class="swatch" style="background:var(--amber)"></div></label>
+  <label class="layer"><input type="checkbox" id="t-land" checked><span>Land</span><div class="swatch" style="background:#7e9e8c"></div></label>
+  <div id="timewrap" style="display:none">
+    <div class="tlabel"><span>FORECAST TIME</span><span id="timelabel">+0d 0h</span></div>
+    <input type="range" id="timeslider" min="0" max="384" value="0" step="3">
+  </div>
+  <div class="hint">Click any open water to <b>re-route</b> from that position — the same engine, a new start. The dashed leg is beyond the <b>8-day wave horizon</b>.</div>
+  <button id="track">▶ Track my position</button>
+  <button id="geo">Route from my location</button>
+  <button id="reset">Reset to San Francisco</button>
+</div>
+
+<div class="panel" id="telemetry"></div>
+<div class="modal-backdrop" id="geo-modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Route from my location">
+    <div class="modal-title">Route from my location</div>
+    <div id="geo-body"></div>
+    <button id="geo-close">Close</button>
+  </div>
+</div>
+<div class="panel legend">
+  <div class="title">True wind speed</div>
+  <div class="bar" id="legend-bar"></div>
+  <div class="ticks"><span>0</span><span>10</span><span>20</span><span>28+ kt</span></div>
+</div>
+<div id="cursor"></div>
+<div id="routedot"></div>
+<div class="panel" id="livehud" hidden>
+  <div class="hud-title"><span class="hud-pulse"></span> Live track</div>
+  <div id="hud-body"></div>
+</div>
+<div id="boatdot" hidden></div>
+
+<script>
+// ============================ geometry (spherical) ============================
+const R_NM = 3440.065, toRad = d => d*Math.PI/180, toDeg = r => r*180/Math.PI;
+function distNm(a,b){const f1=toRad(a.lat),f2=toRad(b.lat),df=toRad(b.lat-a.lat),dl=toRad(b.lon-a.lon);
+  const h=Math.sin(df/2)**2+Math.cos(f1)*Math.cos(f2)*Math.sin(dl/2)**2;return 2*R_NM*Math.asin(Math.min(1,Math.sqrt(h)));}
+function bearing(a,b){const f1=toRad(a.lat),f2=toRad(b.lat),dl=toRad(b.lon-a.lon);
+  const y=Math.sin(dl)*Math.cos(f2),x=Math.cos(f1)*Math.sin(f2)-Math.sin(f1)*Math.cos(f2)*Math.cos(dl);
+  return (toDeg(Math.atan2(y,x))+360)%360;}
+function gcProject(a,brg,d){const dr=d/R_NM,th=toRad(brg),f1=toRad(a.lat),l1=toRad(a.lon);
+  const f2=Math.asin(Math.sin(f1)*Math.cos(dr)+Math.cos(f1)*Math.sin(dr)*Math.cos(th));
+  const l2=l1+Math.atan2(Math.sin(th)*Math.sin(dr)*Math.cos(f1),Math.cos(dr)-Math.sin(f1)*Math.sin(f2));
+  return {lat:toDeg(f2),lon:((toDeg(l2)+540)%360)-180};}
+const vec=(b,s)=>({x:Math.sin(toRad(b))*s,y:Math.cos(toRad(b))*s});
+const brgOf=(x,y)=>(toDeg(Math.atan2(x,y))+360)%360;
+const angDiff=(a,b)=>Math.abs((((a-b)%360)+540)%360-180);
+
+// ============================ boat library: built-in ORR/ORC polars + uploaded ORR certs ============================
+const BOATS = {
+  sc40:{name:"Santa Cruz 40",meta:"Quiver \u00b7 ORR US43259",loa:12.19,polar:{"tws":[4,6,8,10,12,14,16,20,24],"twa":[52,60,75,90,110,120,135,150,165,180],"speed":[[4.05,5.71,6.9,7.49,7.78,7.97,8.1,8.26,8.34],[4.47,6.15,7.27,7.78,8.04,8.22,8.35,8.51,8.6],[4.91,6.62,7.58,8.09,8.37,8.57,8.72,8.92,9.04],[4.96,6.66,7.61,8.15,8.55,8.82,9.01,9.27,9.51],[4.44,6.03,7.37,8.12,8.67,9.12,9.43,9.99,10.5],[4.01,5.89,7.24,7.98,8.54,9.04,9.52,10.37,11.09],[3.45,5.07,6.52,7.43,7.99,8.47,8.93,9.96,11.47],[2.59,3.93,5.15,6.3,7.21,7.8,8.28,9.18,10.23],[2.16,3.3,4.39,5.44,6.4,7.2,7.77,8.67,9.54],[1.99,3.04,4.06,5.04,5.97,6.79,7.44,8.36,9.18]],"beat":{"angle":[47.7,45.6,44.0,41.9,39.4,37.6,37.6,35.0,34.7],"speed":[3.76,5.21,6.19,6.79,7.02,7.17,7.26,7.38,7.44]}}},
+  tp52:{name:"TP52",meta:"SUMMER STORM \u00b7 ORC USA USA520",loa:15.848,polar:{"tws":[4,6,8,10,12,14,16,20,24],"twa":[52,60,75,90,110,120,135,150],"speed":[[6.0,7.9,9.06,9.58,9.98,10.31,10.58,10.99,11.13],[6.48,8.37,9.44,10.05,10.51,10.89,11.2,11.67,11.93],[6.82,8.73,9.81,10.69,11.28,11.78,12.21,12.92,13.45],[6.73,8.61,9.72,10.79,11.75,12.48,13.11,14.22,15.03],[6.22,8.23,9.62,10.82,11.87,12.71,13.51,15.5,17.0],[5.75,7.81,9.38,10.65,11.83,13.1,14.19,15.92,17.44],[4.82,6.98,8.85,10.09,11.44,12.93,14.4,16.68,19.54],[3.98,5.82,7.5,8.79,9.87,11.09,12.54,15.71,19.45]],"beat":{"angle":[43.4,43.4,40.5,39,37.8,37.1,36.4,36.4,37.5],"speed":[5.22,7.1,8.07,8.54,8.8,8.99,9.11,9.34,9.47]}}},
+  sunfast3300:{name:"Sun Fast 3300",meta:"LOW PROFILE \u00b7 ORC USA USA70330",loa:10.0,polar:{"tws":[4,6,8,10,12,14,16,20,24],"twa":[52,60,75,90,110,120,135,150],"speed":[[4.16,5.54,6.46,6.98,7.27,7.41,7.51,7.62,7.63],[4.42,5.81,6.68,7.17,7.46,7.67,7.8,7.96,7.99],[4.6,6.0,6.83,7.31,7.68,7.99,8.23,8.52,8.66],[4.65,6.12,7.04,7.57,7.99,8.27,8.48,9.04,9.43],[4.54,6.08,7.13,7.77,8.33,8.78,9.19,10.08,10.9],[4.43,5.98,7.07,7.72,8.33,8.96,9.57,10.61,12.62],[3.75,5.32,6.6,7.37,7.95,8.56,9.28,11.32,14.46],[3.14,4.47,5.64,6.63,7.35,7.85,8.35,9.72,13.43]],"beat":{"angle":[43,43,40.6,38.9,38.8,38.4,38.2,38.5,40.3],"speed":[3.62,4.99,5.8,6.26,6.58,6.7,6.77,6.85,6.92]}}},
+  cape31:{name:"Cape 31",meta:"Full Send \u00b7 ORC USA USA7361",loa:9.573,polar:{"tws":[6,8,10,12,14,16,20],"twa":[52,60,75,90,110,120,135,150],"speed":[[5.91,6.93,7.43,7.68,7.84,7.97,8.1],[6.22,7.14,7.72,8.05,8.26,8.41,8.59],[6.45,7.28,7.99,8.59,8.92,9.17,9.52],[6.71,7.65,8.27,8.74,9.48,9.95,10.59],[6.58,7.61,8.61,9.49,10.13,10.71,11.73],[6.28,7.48,8.49,9.48,10.55,11.35,12.79],[5.56,7.0,7.97,9.07,10.35,11.64,13.9],[4.68,5.96,7.01,7.93,8.89,10.05,13.11]],"beat":{"angle":[42.4,40.2,38.2,37.5,37,36.9,37],"speed":[5.28,6.22,6.63,6.81,6.9,6.97,7.04]}}},
+};
+const BOAT_ORDER = ["sc40","tp52","sunfast3300","cape31"];
+let POLAR = BOATS.sc40.polar;
+let POLAR_EFF = 0.90;   // fraction of VPP target speed actually achieved (helming, sail changes, crew, seaway)
+const lerp=(a,b,t)=>a+(b-a)*t;
+function interp1(xs,ys,x){if(x<=xs[0])return ys[0];if(x>=xs[xs.length-1])return ys[ys.length-1];
+  let i=1;while(xs[i]<x)i++;return lerp(ys[i-1],ys[i],(x-xs[i-1])/(xs[i]-xs[i-1]));}
+function colSpeed(w,twa){const ang=[0,POLAR.beat.angle[w],...POLAR.twa];
+  const sp=[0,POLAR.beat.speed[w],...POLAR.speed.map(r=>r[w])];return interp1(ang,sp,twa);}
+function polarSpeed(tws,twaRaw){let twa=((twaRaw%360)+360)%360;if(twa>180)twa=360-twa;
+  const T=POLAR.tws,t=Math.max(T[0],Math.min(T[T.length-1],tws));let w=1;while(w<T.length-1&&T[w]<t)w++;
+  const f=(t-T[w-1])/(T[w]-T[w-1]);return lerp(colSpeed(w-1,twa),colSpeed(w,twa),f);}
+
+// ============================ wave-speed penalty ============================
+const WAVE={k:0.40,a:1.5,b:1.0,A:0.45,B:0.55,minMult:0.40,maxMult:1.08};
+function waveMult(Hs,T,waveDir,heading){if(!Hs||!T)return 1;
+  const beta=toRad(angDiff(waveDir,heading)),fA=WAVE.A+WAVE.B*Math.cos(beta);
+  const p=WAVE.k*Math.pow(Hs,WAVE.a)*Math.pow(T,-WAVE.b)*fA;return Math.min(WAVE.maxMult,Math.max(WAVE.minMult,1-p));}
+
+// ============================ environment: live forecast, synthetic fallback ============================
+// getEnv(lat,lon,t) is the single source the router + renderer read. It uses a live
+// Open-Meteo sampler when the fetch succeeds, otherwise a synthetic North Pacific High
+// so the demo always works offline.
+let SAMPLER=null, FIELD='synthetic', DISP_T=0, EPOCH0=Math.floor(Date.now()/1000), HORIZON_H=192, MAXT=384;
+const HIGH={lat:37,lon:-147};
+function synthEnv(lat,lon){ // clockwise circulation around a high with a calm core
+  const d=distNm(HIGH,{lat,lon}), brg=bearing(HIGH,{lat,lon}), twd=(brg+270)%360;
+  const tws=Math.min(27,27*(1-Math.exp(-d/520)));
+  return {tws,twd,waveHeight:0.18*tws+0.7,wavePeriod:5+tws/3.5,waveDir:twd,curSpeed:0.3,curDir:270};}
+function getEnv(lat,lon,t){return (FIELD==='live'&&SAMPLER)?SAMPLER(lat,lon,t||0):synthEnv(lat,lon);}
+
+// ---- Open-Meteo pipeline (inlined from forecast.js): fetch wind + marine over the
+//      corridor, pack into a grid, expose a bilinear-in-space / linear-in-time sampler ----
+const TO_KT={kn:1,kmh:0.539957,'km/h':0.539957,ms:1.943844,'m/s':1.943844,mph:0.868976};
+function bboxFor(pts,m=3,pole=4){const la=pts.map(p=>p.lat),lo=pts.map(p=>p.lon);
+  return {south:Math.min(...la)-m,north:Math.max(...la)+m+pole,west:Math.min(...lo)-m,east:Math.max(...lo)+m};}
+function buildGrid(b,step){const nLat=Math.max(2,Math.ceil((b.north-b.south)/step)+1),nLon=Math.max(2,Math.ceil((b.east-b.west)/step)+1);
+  const lats=[],lons=[];for(let iy=0;iy<nLat;iy++)for(let ix=0;ix<nLon;ix++){lats.push(+(b.south+iy*step).toFixed(2));lons.push(+(b.west+ix*step).toFixed(2));}
+  return {lat0:b.south,lon0:b.west,dLat:step,dLon:step,nLat,nLon,nPts:nLat*nLon,lats,lons};}
+async function omFetch(base,grid,params,signal){
+  const q=new URLSearchParams({latitude:grid.lats.join(','),longitude:grid.lons.join(','),timeformat:'unixtime',cell_selection:'sea',...params});
+  const r=await fetch(base+'?'+q.toString(),{signal});if(!r.ok)throw new Error(base+' HTTP '+r.status);
+  const jx=await r.json();return Array.isArray(jx)?jx:[jx];}
+async function fetchForecastGrid({start,dest,step=1.5,windDays=14,marineDays=8,signal}){
+  const grid=buildGrid(bboxFor([start,dest]),step);
+  const [wind,marine]=await Promise.all([
+    omFetch('https://api.open-meteo.com/v1/forecast',grid,{hourly:'wind_speed_10m,wind_direction_10m',wind_speed_unit:'kn',forecast_days:String(windDays)},signal),
+    omFetch('https://marine-api.open-meteo.com/v1/marine',grid,{hourly:'wave_height,wave_direction,wave_period,ocean_current_velocity,ocean_current_direction',length_unit:'metric',forecast_days:String(marineDays)},signal)]);
+  const nLat=grid.nLat,nLon=grid.nLon,nPts=grid.nPts, epoch0=wind[0].hourly.time[0], master=wind[0].hourly.time;
+  const times=master.map(t=>(t-epoch0)/3600), nT=times.length;
+  const mE=marine[0].hourly.time, mLast=mE.length-1, mAt=e=>Math.max(0,Math.min(mLast,Math.round((e-mE[0])/3600)));
+  const curK=TO_KT[marine[0].hourly_units&&marine[0].hourly_units.ocean_current_velocity]||1;
+  const N=nT*nLat*nLon, F=()=>new Float32Array(N), num=v=>(v==null||Number.isNaN(v)?0:v);
+  const env={epoch0,times,lat0:grid.lat0,lon0:grid.lon0,dLat:grid.dLat,dLon:grid.dLon,nLat,nLon,marineHorizonHours:(mE[mLast]-epoch0)/3600,
+    tws:F(),waveHeight:F(),wavePeriod:F(),curSpeed:F(),twd_x:F(),twd_y:F(),waveDir_x:F(),waveDir_y:F(),curDir_x:F(),curDir_y:F()};
+  const sd=(xa,ya,o,deg)=>{const d=num(deg)*Math.PI/180;xa[o]=Math.sin(d);ya[o]=Math.cos(d);};
+  for(let k=0;k<nPts;k++){const iy=Math.floor(k/nLon),ix=k%nLon,w=wind[k].hourly,m=marine[k].hourly;
+    for(let ti=0;ti<nT;ti++){const o=(ti*nLat+iy)*nLon+ix,mi=mAt(master[ti]);
+      env.tws[o]=num(w.wind_speed_10m[ti]);sd(env.twd_x,env.twd_y,o,w.wind_direction_10m[ti]);
+      env.waveHeight[o]=num(m.wave_height[mi]);env.wavePeriod[o]=num(m.wave_period[mi]);sd(env.waveDir_x,env.waveDir_y,o,m.wave_direction[mi]);
+      env.curSpeed[o]=num(m.ocean_current_velocity[mi])*curK;sd(env.curDir_x,env.curDir_y,o,m.ocean_current_direction[mi]);}}
+  return env;}
+function makeSampler(env){const times=env.times,nLat=env.nLat,nLon=env.nLon, idx=(ti,iy,ix)=>(ti*nLat+iy)*nLon+ix;
+  const bil=(a,ti,iy,ix,fy,fx)=>{const p=a[idx(ti,iy,ix)]+(a[idx(ti,iy,ix+1)]-a[idx(ti,iy,ix)])*fx,
+    q=a[idx(ti,iy+1,ix)]+(a[idx(ti,iy+1,ix+1)]-a[idx(ti,iy+1,ix)])*fx;return p+(q-p)*fy;};
+  return (lat,lon,t)=>{const gy=(lat-env.lat0)/env.dLat,gx=(lon-env.lon0)/env.dLon;
+    const iy=Math.max(0,Math.min(nLat-2,Math.floor(gy))),ix=Math.max(0,Math.min(nLon-2,Math.floor(gx)));
+    const fy=Math.min(1,Math.max(0,gy-iy)),fx=Math.min(1,Math.max(0,gx-ix));
+    let ti=0;while(ti<times.length-2&&times[ti+1]<t)ti++;const ft=Math.min(1,Math.max(0,(t-times[ti])/(times[ti+1]-times[ti])));
+    const sc=n=>{const a=bil(env[n],ti,iy,ix,fy,fx),b=bil(env[n],ti+1,iy,ix,fy,fx);return a+(b-a)*ft;};
+    const dr=n=>{const ax=bil(env[n+'_x'],ti,iy,ix,fy,fx),ay=bil(env[n+'_y'],ti,iy,ix,fy,fx),
+      bx=bil(env[n+'_x'],ti+1,iy,ix,fy,fx),by=bil(env[n+'_y'],ti+1,iy,ix,fy,fx),x=ax+(bx-ax)*ft,y=ay+(by-ay)*ft;
+      return (Math.atan2(x,y)*180/Math.PI+360)%360;};
+    return {tws:sc('tws'),twd:dr('twd'),waveHeight:sc('waveHeight'),wavePeriod:sc('wavePeriod'),waveDir:dr('waveDir'),curSpeed:sc('curSpeed'),curDir:dr('curDir')};};}
+
+// ============================ isochrone engine ============================
+function boatStep(node,h,dt){const e=getEnv(node.lat,node.lon,node.t);
+  let stw=polarSpeed(e.tws,angDiff(e.twd,h))*waveMult(e.waveHeight,e.wavePeriod,e.waveDir,h)*POLAR_EFF;
+  if(!(stw>0))return null;const boat=vec(h,stw),cur=vec(e.curDir,e.curSpeed);
+  const sx=boat.x+cur.x,sy=boat.y+cur.y,sog=Math.hypot(sx,sy);
+  const p=gcProject(node,brgOf(sx,sy),sog*dt);return {lat:p.lat,lon:p.lon,t:node.t+dt,parent:node};}
+function prune(c,start,sec){const best=new Map();for(const n of c){const key=Math.round(bearing(start,n)/sec);
+  const d=distNm(start,n),cur=best.get(key);if(!cur||d>cur._d){n._d=d;best.set(key,n);}}return [...best.values()];}
+function backtrack(n){const p=[];for(;n;n=n.parent)p.push({lat:n.lat,lon:n.lon,t:n.t});return p.reverse();}
+function route(start,dest){
+  const dt=3,hStep=8,sec=2,maxH=384,maxSog=16;
+  let front=[{lat:start.lat,lon:start.lon,t:0,parent:null}];const isochrones=[];
+  for(let el=0;el<maxH;el+=dt){
+    const cands=[];let finish=null;
+    for(const node of front)for(let h=0;h<360;h+=hStep){const nn=boatStep(node,h,dt);if(!nn)continue;
+      if(legHitsLand(node,nn))continue;                  // reject legs that cross land, not just endpoints on land
+      cands.push(nn);if(distNm(nn,dest)<=dt*maxSog&&!legHitsLand(nn,dest)&&(!finish||nn.t<finish.t))finish=nn;}
+    if(finish){isochrones.push(front);
+      const fe=getEnv(finish.lat,finish.lon,finish.t), fh=bearing(finish,dest);
+      const fstw=polarSpeed(fe.tws,angDiff(fe.twd,fh))*waveMult(fe.waveHeight,fe.wavePeriod,fe.waveDir,fh)*POLAR_EFF;
+      const fb=vec(fh,fstw), fc=vec(fe.curDir,fe.curSpeed), fsog=Math.hypot(fb.x+fc.x,fb.y+fc.y);
+      const legT=fsog>0?distNm(finish,dest)/fsog:distNm(finish,dest)/maxSog;
+      const dst={lat:dest.lat,lon:dest.lon,t:finish.t+legT,parent:finish};
+      return {track:backtrack(dst),hours:dst.t,isochrones,reached:true};}
+    front=prune(cands,start,sec);isochrones.push(front);if(!front.length)break;}
+  let best=null,bd=1e9;for(const n of front){const d=distNm(n,dest);if(d<bd){bd=d;best=n;}}
+  return {track:best?backtrack(best):[],hours:best?best.t:0,isochrones,reached:false};
+}
+
+// ============================ projection + colour ============================
+const VIEW={latMin:16,latMax:42.5,lonMin:-160.5,lonMax:-116};
+const SF={lat:37.60,lon:-122.90}, DEST={lat:21.4806,lon:-157.7725}; // SF outside the Gate; Kaneohe Bay, windward Oahu
+// (wave/current horizon, hours; HORIZON_H is set from live data, default 8 days)
+let W=0,H=0;
+const px=(lat,lon)=>[(lon-VIEW.lonMin)/(VIEW.lonMax-VIEW.lonMin)*W,(VIEW.latMax-lat)/(VIEW.latMax-VIEW.latMin)*H];
+const unpx=(x,y)=>({lat:VIEW.latMax-y/H*(VIEW.latMax-VIEW.latMin),lon:VIEW.lonMin+x/W*(VIEW.lonMax-VIEW.lonMin)});
+
+// ---- Real GSHHG coastline (high-res), clipped to the corridor, baked to a land mask ----
+// MASK_PNG is a 1-byte/px land/sea raster over the VIEW bbox (land=white), produced offline
+// from GSHHG high-res shorelines by make-landmask.py. The browser decodes it once into a
+// Uint8 grid for O(1) land lookups; the same image is tinted to draw the land layer.
+const MASK_PNG="data:image/png;base64,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";
+let MASK=null, LANDCANVAS=null;
+function maskLand(lat,lon){if(!MASK)return false;
+  const ix=Math.floor((lon-VIEW.lonMin)/(VIEW.lonMax-VIEW.lonMin)*MASK.nx);
+  const iy=Math.floor((VIEW.latMax-lat)/(VIEW.latMax-VIEW.latMin)*MASK.ny);
+  if(ix<0||iy<0||ix>=MASK.nx||iy>=MASK.ny)return false;   // outside the view = open ocean
+  return MASK.data[iy*MASK.nx+ix]===1;}
+// Does the leg a->b cross land anywhere? Sample at ~mask resolution so a leg can't
+// step over a narrow island or isthmus between two sea endpoints.
+function legHitsLand(a,b){const steps=Math.max(2,Math.ceil(distNm(a,b)));
+  for(let i=0;i<=steps;i++){const t=i/steps;
+    if(maskLand(a.lat+(b.lat-a.lat)*t,a.lon+(b.lon-a.lon)*t))return true;}return false;}
+// Decode the mask PNG into the lookup grid + a pre-tinted land canvas for drawing.
+function loadMask(done){const img=new Image();img.onload=()=>{
+  const nx=img.naturalWidth, ny=img.naturalHeight;
+  const oc=document.createElement('canvas');oc.width=nx;oc.height=ny;
+  oc.getContext('2d').drawImage(img,0,0);
+  const rgba=oc.getContext('2d').getImageData(0,0,nx,ny).data, data=new Uint8Array(nx*ny);
+  const lc=document.createElement('canvas');lc.width=nx;lc.height=ny;
+  const lctx=lc.getContext('2d'), tint=lctx.createImageData(nx,ny);
+  for(let i=0;i<nx*ny;i++){const land=rgba[i*4]>127;data[i]=land?1:0;const o=i*4;
+    tint.data[o]=28;tint.data[o+1]=40;tint.data[o+2]=34;tint.data[o+3]=land?242:0;}
+  lctx.putImageData(tint,0,0);MASK={nx,ny,data};LANDCANVAS=lc;done();};
+  img.src=MASK_PNG;}
+
+const WIND_STOPS=[[0,[43,74,90]],[8,[46,154,166]],[14,[79,208,199]],[20,[255,209,102]],[28,[255,107,94]]];
+function windColor(s){let lo=WIND_STOPS[0],hi=WIND_STOPS[WIND_STOPS.length-1];
+  for(let i=0;i<WIND_STOPS.length-1;i++)if(s>=WIND_STOPS[i][0]&&s<=WIND_STOPS[i+1][0]){lo=WIND_STOPS[i];hi=WIND_STOPS[i+1];break;}
+  const t=(s-lo[0])/(hi[0]-lo[0]||1),c=lo[1].map((v,i)=>Math.round(lerp(v,hi[1][i],Math.max(0,Math.min(1,t)))));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;}
+function waveColor(h){const t=Math.max(0,Math.min(1,h/5));
+  return `rgba(${Math.round(lerp(40,255,t))},${Math.round(lerp(90,150,t))},${Math.round(lerp(150,90,t))},0.16)`;}
+
+// ============================ canvas ============================
+const cv=document.getElementById('map'),ctx=cv.getContext('2d');
+let dpr=1, result=null, origin=SF;
+
+function resize(){dpr=Math.min(2,window.devicePixelRatio||1);W=window.innerWidth;H=window.innerHeight;
+  cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);draw();}
+
+function drawOcean(){const g=ctx.createRadialGradient(W*0.5,H*0.42,80,W*0.5,H*0.5,Math.max(W,H)*0.75);
+  g.addColorStop(0,'#0c2230');g.addColorStop(1,'#061019');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);}
+function drawLand(){if(LANDCANVAS)ctx.drawImage(LANDCANVAS,0,0,W,H);}
+function drawGraticule(){ctx.strokeStyle='rgba(86,152,168,0.14)';ctx.fillStyle='#4a7d8a';
+  ctx.lineWidth=1;ctx.font="10px 'IBM Plex Mono'";
+  for(let lat=20;lat<=40;lat+=5){const[,y]=px(lat,VIEW.lonMin);ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();
+    ctx.fillText(lat+'°N',6,y-4);}
+  for(let lon=-155;lon<=-120;lon+=5){const[x]=px(VIEW.latMin,lon);ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();
+    ctx.fillText(Math.abs(lon)+'°W',x+4,H-8);}}
+function arrow(x,y,dirToward,len,color){const dx=Math.sin(toRad(dirToward)),dy=-Math.cos(toRad(dirToward));
+  const ex=x+dx*len,ey=y+dy*len;ctx.strokeStyle=color;ctx.lineWidth=1.4;
+  ctx.beginPath();ctx.moveTo(x-dx*len*0.3,y-dy*len*0.3);ctx.lineTo(ex,ey);ctx.stroke();
+  const ah=Math.max(3,len*0.34),pa=toRad(dirToward);
+  ctx.beginPath();ctx.moveTo(ex,ey);
+  ctx.lineTo(ex-Math.sin(pa-0.4)*ah,ey+Math.cos(pa-0.4)*ah);ctx.moveTo(ex,ey);
+  ctx.lineTo(ex-Math.sin(pa+0.4)*ah,ey+Math.cos(pa+0.4)*ah);ctx.stroke();}
+function drawWaves(){const step=1.4;for(let lat=VIEW.latMin;lat<VIEW.latMax;lat+=step)
+  for(let lon=VIEW.lonMin;lon<VIEW.lonMax;lon+=step){const e=getEnv(lat+step/2,lon+step/2,DISP_T);
+    const[x,y]=px(lat,lon),[x2,y2]=px(lat-step,lon+step);ctx.fillStyle=waveColor(e.waveHeight);
+    ctx.fillRect(x,y,x2-x,y2-y);}}
+function drawWind(){const step=1.55;for(let lat=VIEW.latMin+0.4;lat<VIEW.latMax;lat+=step)
+  for(let lon=VIEW.lonMin+0.4;lon<VIEW.lonMax;lon+=step){const e=getEnv(lat,lon,DISP_T);const[x,y]=px(lat,lon);
+    const len=4+Math.min(24,e.tws*0.95);arrow(x,y,(e.twd+180)%360,len,windColor(e.tws));}}
+function segOnLand(a,b){const n=6;for(let i=0;i<=n;i++){const t=i/n;
+  if(maskLand(a.lat+(b.lat-a.lat)*t,a.lon+(b.lon-a.lon)*t))return true;}return false;}
+// Buffered land test (~4 nm), used ONLY for drawing: the expanding front piles up
+// against the coast (it can't go inland), so isochrones tangle just offshore. Dropping
+// segments within the buffer makes the contours stop cleanly off the coast.
+function nearLand(lat,lon){const d=0.07;
+  return maskLand(lat,lon)||maskLand(lat+d,lon)||maskLand(lat-d,lon)||maskLand(lat,lon+d)||maskLand(lat,lon-d)
+    ||maskLand(lat+d,lon+d)||maskLand(lat-d,lon-d)||maskLand(lat+d,lon-d)||maskLand(lat-d,lon+d);}
+function drawIsochrones(start){if(!result)return;
+  result.isochrones.forEach((front,i)=>{if(front.length<2)return;
+    const pts=[...front].sort((a,b)=>bearing(start,a)-bearing(start,b));
+    const major=i%8===0; // every 24h (dt=3)
+    ctx.strokeStyle=major?'rgba(63,205,224,0.55)':'rgba(63,205,224,0.16)';ctx.lineWidth=major?1.3:0.8;
+    ctx.beginPath();
+    for(let j=1;j<pts.length;j++){const a=pts[j-1],b=pts[j];
+      if(nearLand(a.lat,a.lon)||nearLand(b.lat,b.lon)||segOnLand(a,b))continue; // drop coastal / over-land bits
+      const[x1,y1]=px(a.lat,a.lon),[x2,y2]=px(b.lat,b.lon);ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);}
+    ctx.stroke();});}
+function drawTrack(){if(!result||!result.track.length)return;const tr=result.track;
+  // split at the wave horizon
+  let splitIdx=tr.findIndex(p=>p.t>HORIZON_H);if(splitIdx<0)splitIdx=tr.length;
+  ctx.lineJoin='round';ctx.shadowColor='rgba(255,177,59,0.55)';ctx.shadowBlur=12;
+  ctx.strokeStyle='#ffb13b';ctx.lineWidth=2.6;ctx.beginPath();
+  tr.slice(0,splitIdx).forEach((p,j)=>{const[x,y]=px(p.lat,p.lon);j?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();
+  if(splitIdx<tr.length){ctx.setLineDash([5,5]);ctx.shadowBlur=6;ctx.beginPath();
+    tr.slice(splitIdx-1).forEach((p,j)=>{const[x,y]=px(p.lat,p.lon);j?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();ctx.setLineDash([]);}
+  ctx.shadowBlur=0;
+  // wave-horizon marker
+  if(splitIdx<tr.length){const p=tr[splitIdx];const[x,y]=px(p.lat,p.lon);
+    ctx.strokeStyle='#ffb13b';ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(x,y,6,0,7);ctx.stroke();
+    ctx.fillStyle='#ffb13b';ctx.font="9px 'IBM Plex Mono'";ctx.fillText('WAVE HORIZON · DAY 8',x+10,y+3);}}
+// A gybe = the wind crosses the stern: the tack (sign of the wind-vs-heading angle)
+// flips while sailing downwind (|angle| stays > 90). A tack flips it upwind (|angle|→0).
+function gybes(tr){const g=[];if(tr.length<3)return g;const rel=[];
+  for(let s=0;s<tr.length-1;s++){const h=bearing(tr[s],tr[s+1]),e=getEnv(tr[s].lat,tr[s].lon);
+    rel.push(((e.twd-h+540)%360)-180);}
+  for(let s=1;s<rel.length;s++)
+    if(Math.sign(rel[s-1])!==Math.sign(rel[s])&&Math.min(Math.abs(rel[s-1]),Math.abs(rel[s]))>90)g.push(tr[s]);
+  return g;}
+function drawGybes(){if(!result)return;ctx.lineWidth=1.4;
+  gybes(result.track).forEach(p=>{const[x,y]=px(p.lat,p.lon);
+    ctx.fillStyle='rgba(8,22,31,0.9)';ctx.strokeStyle='rgba(255,209,102,0.9)';
+    ctx.beginPath();ctx.moveTo(x,y-5);ctx.lineTo(x+5,y);ctx.lineTo(x,y+5);ctx.lineTo(x-5,y);ctx.closePath();
+    ctx.fill();ctx.stroke();});}
+function marker(p,color,r){const[x,y]=px(p.lat,p.lon);ctx.fillStyle=color;ctx.strokeStyle='#061019';ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();ctx.stroke();}
+function label(p,text,color,dx){const[x,y]=px(p.lat,p.lon);ctx.fillStyle=color;ctx.font="600 12px 'Saira'";
+  ctx.fillText(text,x+(dx||9),y-9);}
+function drawMarkers(){
+  const[hx,hy]=px(DEST.lat,DEST.lon);ctx.strokeStyle='#ff6b5e';ctx.lineWidth=1.6;
+  ctx.beginPath();ctx.arc(hx,hy,7,0,7);ctx.moveTo(hx-11,hy);ctx.lineTo(hx+11,hy);ctx.moveTo(hx,hy-11);ctx.lineTo(hx,hy+11);ctx.stroke();
+  label(DEST,'KANEOHE BAY','#ff6b5e');
+  if(!livePos){marker(origin,'#5fe39a',5);label(origin,origin===SF?'SAN FRANCISCO':'POSITION','#5fe39a');}}
+
+function draw(){drawOcean();drawGraticule();
+  if(document.getElementById('t-wave').checked)drawWaves();
+  if(document.getElementById('t-wind').checked)drawWind();
+  if(document.getElementById('t-land').checked)drawLand();
+  if(document.getElementById('t-iso').checked)drawIsochrones(origin);
+  if(document.getElementById('t-track').checked){drawTrack();drawGybes();}
+  drawMarkers();telemetry();if(livePos){drawBoatHeading();placeBoatDot();}}
+
+// ============================ telemetry + interaction ============================
+function sailedNm(tr){let s=0;for(let i=1;i<tr.length;i++)s+=distNm(tr[i-1],tr[i]);return s;}
+function fmtDur(h){const d=Math.floor(h/24);return `${d}d ${Math.round(h-d*24)}h`;}
+function telemetry(){const el=document.getElementById('telemetry');if(!result){el.innerHTML='';return;}
+  const gc=distNm(origin,DEST),sailed=sailedNm(result.track);
+  el.innerHTML=`<div class="row"><span class="k">PASSAGE TIME</span></div><div class="big">${fmtDur(result.hours)}</div>`+
+    `<div class="row"><span class="k">great-circle</span><span class="v">${Math.round(gc)} nm</span></div>`+
+    `<div class="row"><span class="k">sailed</span><span class="v">${Math.round(sailed)} nm</span></div>`+
+    `<div class="row"><span class="k">avg SOG</span><span class="v">${(sailed/result.hours).toFixed(1)} kt</span></div>`+
+    `<div class="row"><span class="k">extra distance</span><span class="v">+${Math.round((sailed/gc-1)*100)}%</span></div>`+
+    `<div class="row"><span class="k">gybes</span><span class="v">${gybes(result.track).length}</span></div>`;}
+
+// Sail wardrobe for the Santa Cruz 40 (cert: symmetric spinnaker, no asym).
+function sailFor(twa,tws){
+  if(twa<42) return 'Pinching — no drive';
+  if(twa<70) return 'Main + Genoa — close-hauled';
+  if(twa<90) return 'Main + Genoa — close reach';
+  if(twa<110) return tws>22?'Main + Jib — beam reach':'Main + Genoa — beam reach';
+  if(twa<150) return tws>24?'Main + poled jib — heavy air':'Spinnaker (sym) — broad reach';
+  return tws>24?'Main + poled jib — heavy air':'Spinnaker (sym) — running deep';
+}
+// Closest point on the route polyline to the cursor (screen space).
+function nearestOnTrack(mx,my){if(!result||result.track.length<2)return null;const tr=result.track;let best=null;
+  for(let i=0;i<tr.length-1;i++){const[x1,y1]=px(tr[i].lat,tr[i].lon),[x2,y2]=px(tr[i+1].lat,tr[i+1].lon);
+    const dx=x2-x1,dy=y2-y1,L2=dx*dx+dy*dy||1;let t=Math.max(0,Math.min(1,((mx-x1)*dx+(my-y1)*dy)/L2));
+    const qx=x1+dx*t,qy=y1+dy*t,d=Math.hypot(mx-qx,my-qy);
+    if(!best||d<best.d)best={d,x:qx,y:qy,lat:tr[i].lat+(tr[i+1].lat-tr[i].lat)*t,
+      lon:tr[i].lon+(tr[i+1].lon-tr[i].lon)*t,heading:bearing(tr[i],tr[i+1]),t:tr[i].t+(tr[i+1].t-tr[i].t)*t};}
+  return best;}
+
+const cursorEl=document.getElementById('cursor'), routedot=document.getElementById('routedot');
+cv.addEventListener('mousemove',ev=>{
+  const near=document.getElementById('t-track').checked?nearestOnTrack(ev.clientX,ev.clientY):null;
+  cursorEl.style.display='block';cursorEl.style.left=(ev.clientX+14)+'px';cursorEl.style.top=(ev.clientY+14)+'px';
+  if(near&&near.d<14){
+    const e=getEnv(near.lat,near.lon,near.t),twa=angDiff(e.twd,near.heading);
+    const tack=(((e.twd-near.heading+540)%360)-180)>0?'STBD':'PORT';
+    routedot.style.display='block';routedot.style.left=near.x+'px';routedot.style.top=near.y+'px';
+    cursorEl.innerHTML=`<span class="lbl">heading</span> ${Math.round(near.heading)}°  <span class="lbl">tack</span> ${tack}<br>`+
+      `<span class="lbl">TWA</span> ${Math.round(twa)}°  <span class="lbl">wind</span> ${Math.round(e.tws)} kt<br>`+
+      `<span class="lbl">sail</span> ${sailFor(twa,e.tws)}<br>`+
+      `<span class="lbl">ETA</span> +${fmtDur(near.t)}`;
+  }else{
+    routedot.style.display='none';
+    const p=unpx(ev.clientX,ev.clientY),e=getEnv(p.lat,p.lon,DISP_T);
+    cursorEl.innerHTML=`<span class="lbl">pos </span>${p.lat.toFixed(1)}°N ${Math.abs(p.lon).toFixed(1)}°W<br>`+
+      `<span class="lbl">wind</span> ${Math.round(e.tws)} kt from ${Math.round(e.twd)}°<br>`+
+      `<span class="lbl">sea </span> Hs ${e.waveHeight.toFixed(1)} m @ ${e.wavePeriod.toFixed(0)} s`;
+  }});
+cv.addEventListener('mouseleave',()=>{cursorEl.style.display='none';routedot.style.display='none';});
+cv.addEventListener('click',ev=>{const p=unpx(ev.clientX,ev.clientY);
+  if(distNm(p,DEST)<60)return;origin={lat:+p.lat.toFixed(2),lon:+p.lon.toFixed(2)};replan();});
+
+function compute(){result=route(origin,DEST);draw();}
+document.querySelectorAll('#controls input').forEach(c=>c.addEventListener('change',draw));
+document.getElementById('reset').addEventListener('click',()=>{origin=SF;replan();});
+document.getElementById('legend-bar').style.background=
+  `linear-gradient(90deg,${WIND_STOPS.map(s=>windColor(s[0])).join(',')})`;
+window.addEventListener('resize',resize);
+// ============================ boat library + ORR certificate upload ============================
+if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+function boatSub(id){return (BOATS[id].name+' \u00b7 '+BOATS[id].meta).toUpperCase();}
+function populateBoatSelect(){const sel=document.getElementById('boat');sel.innerHTML='';
+  BOAT_ORDER.forEach(id=>{const o=document.createElement('option');o.value=id;o.textContent=BOATS[id].name;sel.appendChild(o);});}
+function setBoat(id){if(!BOATS[id])return;POLAR=BOATS[id].polar;
+  document.getElementById('boat').value=id;document.getElementById('boatsub').textContent=boatSub(id);compute();}
+function setupBoats(){populateBoatSelect();document.getElementById('boat').value='sc40';
+  document.getElementById('boatsub').textContent=boatSub('sc40');
+  document.getElementById('boat').addEventListener('change',e=>setBoat(e.target.value));
+  document.getElementById('cert').addEventListener('change',e=>{const f=e.target.files[0];if(f)loadCert(f);e.target.value='';});}
+// reconstruct visual text rows from pdf.js items: cluster by y (3pt), order each row by x
+function linesFromContent(items){
+  const its=items.map(it=>({x:it.transform[4],y:it.transform[5],s:it.str})).filter(it=>it.s.trim());
+  its.sort((a,b)=> b.y-a.y || a.x-b.x);
+  const out=[];let cur=null;
+  for(const it of its){if(!cur||Math.abs(it.y-cur.y)>3){cur={y:it.y,parts:[]};out.push(cur);}cur.parts.push(it);}
+  return out.map(l=>l.parts.sort((a,b)=>a.x-b.x).map(p=>p.s).join(' '));}
+function nums(s){const m=s.replace(/,/g,'').match(/-?\d+(?:\.\d+)?/g);return m?m.map(Number):[];}
+// Parse the FIRST "Table of Boat Speed Polars" (page 2 boat polar, not the page-3 fleet-adjusted copy).
+function parseORR(lines){
+  let i=lines.findIndex(l=>/Table of Boat Speed Polars/i.test(l));
+  if(i<0) throw new Error('No \u201cTable of Boat Speed Polars\u201d found \u2014 is this an ORR certificate?');
+  let tws=null,beatA=null,beatS=null;const twa=[],speed=[];
+  for(let j=i+1;j<lines.length;j++){const L=lines[j];
+    if(/Table of (Time Allowances|Boat Speed Polars)/i.test(L)) break;       // end of this table
+    if(/True Wind Speed/i.test(L)){tws=nums(L);continue;}
+    if(/Up Angle/i.test(L)){beatA=nums(L);continue;}
+    if(/Speed\s*Up\s*kts/i.test(L)){beatS=nums(L);continue;}
+    if(/Speed\s*Dn\s*kts|Dn Angle/i.test(L)) continue;
+    const m=L.match(/^\s*(\d{2,3})\s*\u00b0/);                                 // TWA data row e.g. "52\u00b0 ..."
+    if(m){const v=nums(L);if(v.length>=2){twa.push(+m[1]);speed.push(v.slice(1));}}}
+  if(!tws||!beatA||!beatS) throw new Error('Could not read the wind / angle / speed header rows');
+  const n=tws.length;
+  if(beatA.length!==n||beatS.length!==n) throw new Error('Up-angle columns ('+beatA.length+') do not match wind speeds ('+n+')');
+  if(twa.length<4) throw new Error('Only '+twa.length+' wind-angle rows found');
+  const speedN=speed.map(r=>r.slice(0,n));
+  if(speedN.some(r=>r.length!==n)) throw new Error('A speed row has the wrong number of columns');
+  return {tws,twa,speed:speedN,beat:{angle:beatA,speed:beatS}};}
+async function loadCert(file){
+  const msg=document.getElementById('certmsg');
+  if(!window.pdfjsLib){msg.textContent='PDF reader did not load (offline?). Presets still work.';msg.className='certmsg err';return;}
+  msg.textContent='Reading '+file.name+'\u2026';msg.className='certmsg';
+  try{
+    const buf=await file.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+    let lines=[];
+    for(let p=1;p<=pdf.numPages;p++){const pg=await pdf.getPage(p);const tc=await pg.getTextContent();lines=lines.concat(linesFromContent(tc.items));}
+    const polar=parseORR(lines);
+    const id='cert'+Object.keys(BOATS).length;
+    BOATS[id]={name:file.name.replace(/\.pdf$/i,'').slice(0,26)||'Uploaded cert',meta:'uploaded ORR cert',loa:null,polar};
+    BOAT_ORDER.push(id);populateBoatSelect();setBoat(id);
+    msg.textContent='\u2713 polar loaded \u00b7 '+polar.tws.length+' wind speeds \u00d7 '+polar.twa.length+' angles';msg.className='certmsg ok';
+  }catch(err){msg.textContent='\u2717 '+err.message;msg.className='certmsg err';}}
+function setStatus(t,c){const s=document.getElementById('status');s.textContent=t;s.className='status '+(c||'');}
+function updateTimeLabel(){const d=Math.floor(DISP_T/24),h=Math.round(DISP_T-d*24);
+  const when=new Date((EPOCH0+DISP_T*3600)*1000).toISOString().slice(5,16).replace('T',' ');
+  document.getElementById('timelabel').textContent='+'+d+'d '+h+'h \u00b7 '+when+'Z';}
+function setupSlider(live){const w=document.getElementById('timewrap');w.style.display=live?'block':'none';
+  if(!live)return;const s=document.getElementById('timeslider');s.max=Math.floor(MAXT);s.step=3;s.value=0;DISP_T=0;updateTimeLabel();}
+document.getElementById('timeslider').addEventListener('input',e=>{DISP_T=+e.target.value;updateTimeLabel();draw();});
+document.getElementById('effslider').addEventListener('input',e=>{document.getElementById('efflabel').textContent=e.target.value+'%';});
+document.getElementById('effslider').addEventListener('change',e=>{POLAR_EFF=+e.target.value/100;compute();});
+
+// Re-plan. GFS only updates every 6h (00/06/12/18 UTC), so within a forecast window the
+// data is identical and is fetched ONCE for the whole corridor, then cached. Rerouting
+// re-runs the router against the cached grid from the new start position -- no upstream
+// call until the model cycle rolls over. This is the client-side half of "don't hammer
+// the source"; a real multi-user app shares one such cache server-side (see notes).
+let inflight=null, reqSeq=0, CACHE=null, LIVE_OFF=false;  // CACHE={cycle,env}; LIVE_OFF once live is known unavailable
+// Latest GFS cycle that should be on the server now: 6h cadence, ~5h availability lag.
+function expectedCycle(){const d=new Date(Date.now()-5*3600e3),h=Math.floor(d.getUTCHours()/6)*6;
+  return Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate(),h)/1000;}
+function cycLabel(c){return new Date(c*1000).toISOString().slice(0,13).replace('T',' ')+'Z';}
+function applyEnv(env){SAMPLER=makeSampler(env);FIELD='live';EPOCH0=env.epoch0;HORIZON_H=env.marineHorizonHours;MAXT=env.times[env.times.length-1];}
+async function replan(){
+  const seq=++reqSeq, cyc=expectedCycle();
+  if(CACHE && CACHE.cycle===cyc){                         // same forecast window -> reuse, zero upstream calls
+    applyEnv(CACHE.env);
+    setStatus('\u25c9 live \u00b7 cached \u00b7 GFS '+cycLabel(cyc)+' (no refetch)','live');setupSlider(true);
+    compute();return;
+  }
+  if(LIVE_OFF){ FIELD='synthetic'; setStatus('\u25c9 demo \u00b7 synthetic field (live unavailable)','demo'); setupSlider(false); compute(); return; }
+  setStatus('\u25cc fetching live forecast\u2026','load');
+  let env=null, hardFail=false;
+  try{
+    if(inflight) inflight.abort();
+    const ctrl=new AbortController(); inflight=ctrl;
+    const to=setTimeout(()=>ctrl.abort(),15000);
+    env=await fetchForecastGrid({start:SF,dest:DEST,step:1.5,signal:ctrl.signal}); // FIXED corridor -> reusable by every reroute
+    clearTimeout(to);
+  }catch(e){ hardFail=(e.name!=='AbortError'); }          // ignore aborts (superseded reroutes)
+  if(seq!==reqSeq) return;                                // a newer reroute is in charge
+  if(env){
+    CACHE={cycle:cyc,env};applyEnv(env);
+    setStatus('\u25c9 live \u00b7 GFS + marine \u00b7 '+cycLabel(cyc),'live');setupSlider(true);
+  }else if(hardFail){
+    if(SAMPLER){ setStatus('\u25c9 live \u00b7 last forecast (refetch failed)','live'); }
+    else { FIELD='synthetic'; LIVE_OFF=true; setStatus('\u25c9 demo \u00b7 synthetic field (live unavailable)','demo'); setupSlider(false); }
+  }
+  compute();
+}
+async function init(){ resize(); await new Promise(r=>loadMask(r)); resize(); await replan(); }
+// ============================ "Route from my location" (browser Geolocation) ============================
+const DEST_NAME='Kaneohe Bay';
+function dm(v,pos,neg){const h=v>=0?pos:neg,a=Math.abs(v),d=Math.floor(a),m=(a-d)*60;return d+'\u00b0'+m.toFixed(1)+"'"+h;}
+function geoModal(html){document.getElementById('geo-body').innerHTML=html;document.getElementById('geo-modal').hidden=false;}
+function closeGeo(){document.getElementById('geo-modal').hidden=true;}
+function inChart(lat,lon){return lat>VIEW.latMin&&lat<VIEW.latMax&&lon>VIEW.lonMin&&lon<VIEW.lonMax;}
+function geoRow(label,val,big){return '<div class="geo-row"><span class="lbl">'+label+'</span><span class="val'+(big?' big':'')+'">'+val+'</span></div>';}
+function posRows(lat,lon){return geoRow('Latitude',dm(lat,'N','S'))+geoRow('Longitude',dm(lon,'E','W'))
+  +geoRow('Decimal',lat.toFixed(4)+', '+lon.toFixed(4))+geoRow('Destination',DEST_NAME);}
+function boatName(){return BOATS[document.getElementById('boat').value].name;}
+function routeFromLocation(){
+  if(!navigator.geolocation){ geoModal('<div class="geo-note err">This browser can\u2019t share a location.</div>'); return; }
+  geoModal('<div class="geo-note wait">\u25cc Requesting your location\u2026 allow access when your browser asks.</div>');
+  navigator.geolocation.getCurrentPosition(async function(p){
+    const lat=p.coords.latitude, lon=p.coords.longitude;
+    const direct=Math.round(bearing({lat,lon},DEST)), dist=Math.round(distNm({lat,lon},DEST));
+    const onWater=inChart(lat,lon)&&!maskLand(lat,lon);
+    if(!onWater){
+      geoModal(posRows(lat,lon)
+        +geoRow('Bearing to dest',direct+'\u00b0T',true)
+        +geoRow('Distance',dist.toLocaleString()+' nm')
+        +'<div class="geo-note warn">You\u2019re outside the charted SF\u2013Hawaii corridor \u2014 showing the direct bearing only; the route is unchanged.</div>');
+      return;
+    }
+    // Route from here for the SELECTED boat, then read the first leg = the optimal heading to steer now.
+    geoModal(posRows(lat,lon)+'<div class="geo-note wait">\u25cc Computing the optimal route for the '+boatName()+'\u2026</div>');
+    origin={lat:+lat.toFixed(2),lon:+lon.toFixed(2)};
+    await replan();
+    if(result&&result.reached&&result.track.length>=2){
+      const opt=Math.round(bearing(result.track[0],result.track[1]));   // boat-specific, wind-aware first-leg heading
+      const eta=(result.hours/24).toFixed(1);
+      const off=Math.round(((opt-direct+540)%360)-180);                 // signed offset from the rhumb line
+      geoModal(posRows(lat,lon)
+        +geoRow('Optimal heading',opt+'\u00b0T',true)
+        +geoRow('Direct bearing',direct+'\u00b0T')
+        +geoRow('Distance',dist.toLocaleString()+' nm')
+        +geoRow('ETA',eta+' days')
+        +'<div class="geo-note ok">\u25b8 Routed for the '+boatName()+'. Optimal heading is '
+          +(Math.abs(off)>=1?(Math.abs(off)+'\u00b0 '+(off>0?'right':'left')+' of the direct line'):'on the direct line')
+          +' \u2014 close this to see the track.</div>');
+    } else {
+      geoModal(posRows(lat,lon)
+        +geoRow('Bearing to dest',direct+'\u00b0T',true)
+        +geoRow('Distance',dist.toLocaleString()+' nm')
+        +'<div class="geo-note warn">Couldn\u2019t compute a full route from here \u2014 showing the direct bearing.</div>');
+    }
+  }, function(err){
+    const m={1:'Location permission was denied. Enable it in your browser\u2019s site settings, then try again.',
+             2:'Your position is unavailable right now. With a clear view of the sky, try again.',
+             3:'The location request timed out. Please try again.'};
+    geoModal('<div class="geo-note err">'+(m[err.code]||'Could not get your location.')+'</div>');
+  }, {enableHighAccuracy:true, timeout:10000, maximumAge:60000});
+}
+document.getElementById('geo').addEventListener('click',routeFromLocation);
+document.getElementById('geo-close').addEventListener('click',closeGeo);
+document.getElementById('geo-modal').addEventListener('click',function(e){ if(e.target.id==='geo-modal') closeGeo(); });
+document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeGeo(); });
+// ---- continuous tracking (watchPosition): live boat marker, HUD, throttled auto-routing ----
+let watchId=null, livePos=null, liveCog=null, liveSog=null, lastSolve=null, solving=false;
+const RESOLVE_NM=1.5, RESOLVE_MS=60000;                 // re-solve after ~1.5 nm moved or ~60 s elapsed
+function optimalHeadingDeg(){return (result&&result.reached&&result.track.length>=2)?Math.round(bearing(result.track[0],result.track[1])):null;}
+function placeBoatDot(){const el=document.getElementById('boatdot');if(!livePos){el.hidden=true;return;}
+  const a=px(livePos.lat,livePos.lon);el.style.left=a[0]+'px';el.style.top=a[1]+'px';el.hidden=false;}
+function drawBoatHeading(){const opt=optimalHeadingDeg();if(opt==null)return;
+  const a=px(livePos.lat,livePos.lon);arrow(a[0],a[1],opt,26,'#3fcde0');}
+function hudErr(msg){document.getElementById('livehud').hidden=false;document.getElementById('hud-body').innerHTML='<div class="hnote err">'+msg+'</div>';}
+function updateHud(note,noteCls){
+  if(!livePos)return;
+  const opt=optimalHeadingDeg(), dist=Math.round(distNm(livePos,DEST));
+  const cog=(liveCog!=null&&!Number.isNaN(liveCog))?Math.round(liveCog)+'\u00b0':'\u2014';
+  const sog=(liveSog!=null&&!Number.isNaN(liveSog))?(liveSog*1.943844).toFixed(1)+' kt':'\u2014';
+  const eta=(result&&result.reached)?(result.hours/24).toFixed(1)+' d':'\u2014';
+  document.getElementById('hud-body').innerHTML=
+    '<div class="hrow"><span class="k">optimal hdg</span></div>'+
+    '<div class="hbig">'+(opt!=null?opt+'\u00b0T':'\u2014')+'</div>'+
+    '<div class="hrow"><span class="k">position</span><span class="v">'+dm(livePos.lat,'N','S')+'</span></div>'+
+    '<div class="hrow"><span class="k"></span><span class="v">'+dm(livePos.lon,'E','W')+'</span></div>'+
+    '<div class="hrow"><span class="k">COG \u00b7 SOG</span><span class="v">'+cog+' \u00b7 '+sog+'</span></div>'+
+    '<div class="hrow"><span class="k">to '+DEST_NAME+'</span><span class="v">'+dist.toLocaleString()+' nm</span></div>'+
+    '<div class="hrow"><span class="k">ETA</span><span class="v">'+eta+'</span></div>'+
+    (note?'<div class="hnote '+(noteCls||'')+'">'+note+'</div>':'');
+}
+async function maybeResolve(){
+  if(solving)return;
+  const moved=lastSolve?distNm(livePos,lastSolve):Infinity, aged=lastSolve?(Date.now()-lastSolve.t):Infinity;
+  if(!(moved>=RESOLVE_NM||aged>=RESOLVE_MS))return;
+  if(!inChart(livePos.lat,livePos.lon)||maskLand(livePos.lat,livePos.lon))return;   // off-corridor: marker only
+  solving=true; origin={lat:+livePos.lat.toFixed(2),lon:+livePos.lon.toFixed(2)};
+  lastSolve={lat:livePos.lat,lon:livePos.lon,t:Date.now()};
+  await replan(); solving=false; updateHud();
+}
+function onFix(p){
+  livePos={lat:p.coords.latitude,lon:p.coords.longitude};
+  liveCog=p.coords.heading; liveSog=p.coords.speed;
+  placeBoatDot(); draw();
+  const off=!inChart(livePos.lat,livePos.lon)||maskLand(livePos.lat,livePos.lon);
+  updateHud(off?'Outside the charted SF\u2013Hawaii corridor \u2014 marker only.':'', off?'err':'');
+  maybeResolve();
+}
+function onWatchErr(err){
+  const m={1:'Permission denied \u2014 enable location in your browser\u2019s site settings.',
+           2:'Position unavailable right now.',3:'Location request timed out; still trying\u2026'};
+  hudErr(m[err.code]||'Could not get your location.');
+  if(err.code===1) stopTracking();
+}
+function startTracking(){
+  if(!navigator.geolocation){ hudErr('This browser can\u2019t share a location.'); return; }
+  document.getElementById('livehud').hidden=false;
+  document.getElementById('hud-body').innerHTML='<div class="hnote">\u25cc Acquiring GPS\u2026 allow access when your browser asks.</div>';
+  const btn=document.getElementById('track'); btn.classList.add('active'); btn.textContent='\u25a0 Stop tracking';
+  lastSolve=null; solving=false;
+  watchId=navigator.geolocation.watchPosition(onFix,onWatchErr,{enableHighAccuracy:true,maximumAge:2000,timeout:15000});
+}
+function stopTracking(){
+  if(watchId!=null){navigator.geolocation.clearWatch(watchId);watchId=null;}
+  livePos=null; liveCog=liveSog=null;
+  document.getElementById('boatdot').hidden=true; document.getElementById('livehud').hidden=true;
+  const btn=document.getElementById('track'); btn.classList.remove('active'); btn.textContent='\u25b6 Track my position';
+  draw();
+}
+document.getElementById('track').addEventListener('click',function(){ watchId==null?startTracking():stopTracking(); });
+setupBoats();
+init();
+</script>

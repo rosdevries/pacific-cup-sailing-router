@@ -1,0 +1,7 @@
+node_modules/
+.env
+.cache/
+*.log
+dist/
+# regenerated forecast grids live on the Railway volume, never in git:
+data/forecast-*.json
