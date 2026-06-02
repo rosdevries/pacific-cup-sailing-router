@@ -13,8 +13,10 @@ import { fetchForecastGrid } from '../src/forecast.js';
 const ROOT      = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CACHE_DIR = process.env.CACHE_DIR || path.join(ROOT, '.cache');
 
-const SF   = { lat: 37.60,   lon: -122.90   };
-const DEST = { lat: 21.4806, lon: -157.7725 };
+const SF         = { lat: 37.60,   lon: -122.90   };
+const SAN_PEDRO  = { lat: 33.6917, lon: -118.2917 };
+const DEST       = { lat: 21.4806, lon: -157.7725 };
+const GRID_START = { lat: SF.lat, lon: SAN_PEDRO.lon };
 
 async function metadataLatestCycle() {
   const url = 'https://api.open-meteo.com/data/ecmwf?variables=&models=gfs_seamless';
@@ -45,7 +47,7 @@ async function main() {
   } catch { /* not cached yet, continue */ }
 
   console.log(`[prefetch] fetching cycle ${new Date(cycle * 1000).toISOString()} → ${CACHE_DIR}`);
-  const raw  = await fetchForecastGrid({ start: SF, dest: DEST, step: 1.5 });
+  const raw  = await fetchForecastGrid({ start: GRID_START, dest: DEST, step: 1.5 });
   const grid = Object.fromEntries(
     Object.entries(raw).map(([k, v]) => [k, v instanceof Float32Array ? Array.from(v) : v]),
   );

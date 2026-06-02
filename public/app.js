@@ -21,7 +21,13 @@ const { boats: BOATS, boatOrder: BOAT_ORDER } = await fetch('/data/boats.json').
 // ---- Constants ----
 const SF         = { lat: 37.60,    lon: -122.90    };
 const SAN_PEDRO  = { lat: 33.6917,  lon: -118.2917  }; // Transpac start line
-const DEST       = { lat: 21.4806,  lon: -157.7725  };
+
+const ROUTES = {
+  paccup:   { origin: SF,        dest: { lat: 21.4806, lon: -157.7725 }, destLabel: 'KANEOHE BAY',  destName: 'Kaneohe Bay',  resetLabel: 'Reset to San Francisco' },
+  transpac: { origin: SAN_PEDRO, dest: { lat: 21.2454, lon: -157.8167 }, destLabel: 'DIAMOND HEAD', destName: 'Diamond Head', resetLabel: 'Reset to San Pedro'     },
+};
+let DEST      = ROUTES.paccup.dest;
+let DEST_LABEL = ROUTES.paccup.destLabel;
 // Render a wider area than the land-mask coverage so Hawaii clears the left controls panel
 const BASE_RVIEW = { latMin: 14, latMax: 44.5, lonMin: -175, lonMax: -108 };
 const RVIEW = { ...BASE_RVIEW }; // mutated in-place by zoom/pan
@@ -63,9 +69,10 @@ const CALIFORNIA_COAST = [
 const HIGH = { lat: 37, lon: -147 };
 const WIND_STOPS = [[0,[43,74,90]],[8,[46,154,166]],[14,[79,208,199]],[20,[255,209,102]],[28,[255,107,94]]];
 const RESOLVE_NM = 1.5, RESOLVE_MS = 60000;
-const DEST_NAME = 'Kaneohe Bay';
+let DEST_NAME = ROUTES.paccup.destName;
 
 // ---- Mutable state ----
+let activeRoute = 'paccup';
 let POLAR = BOATS.sc40.polar;
 let POLAR_EFF = 1.00;
 let ASYM = false;
@@ -506,9 +513,14 @@ function label(p, text, color, dx) {
 function drawMarkers() {
   const [hx,hy] = px(DEST.lat,DEST.lon); ctx.strokeStyle = '#ff6b5e'; ctx.lineWidth = 1.6;
   ctx.beginPath(); ctx.arc(hx,hy,7,0,7); ctx.moveTo(hx-11,hy); ctx.lineTo(hx+11,hy); ctx.moveTo(hx,hy-11); ctx.lineTo(hx,hy+11); ctx.stroke();
-  label(DEST, 'KANEOHE BAY', '#ff6b5e');
-  marker(SAN_PEDRO, '#4a7d8a', 4); label(SAN_PEDRO, 'SAN PEDRO', '#4a7d8a');
-  if (!livePos) { marker(origin, '#5fe39a', 5); label(origin, origin === SF ? 'SAN FRANCISCO' : 'POSITION', '#5fe39a'); }
+  label(DEST, DEST_LABEL, '#ff6b5e');
+  const inactiveStart = activeRoute === 'paccup' ? SAN_PEDRO : SF;
+  const inactiveStartLabel = activeRoute === 'paccup' ? 'SAN PEDRO' : 'SAN FRANCISCO';
+  marker(inactiveStart, '#4a7d8a', 4); label(inactiveStart, inactiveStartLabel, '#4a7d8a');
+  if (!livePos) {
+    const originLabel = origin === SF ? 'SAN FRANCISCO' : origin === SAN_PEDRO ? 'SAN PEDRO' : 'POSITION';
+    marker(origin, '#5fe39a', 5); label(origin, originLabel, '#5fe39a');
+  }
 }
 let _rafPending = false;
 function scheduleDraw() {
@@ -718,7 +730,18 @@ cv.addEventListener('touchend', ev => {
 
 // ---- Controls wiring ----
 document.querySelectorAll('#controls input').forEach(c => c.addEventListener('change', scheduleDraw));
-document.getElementById('reset').addEventListener('click', () => { origin = SF; START_T = 0; resetView(); replan(); });
+document.getElementById('reset').addEventListener('click', () => { origin = ROUTES[activeRoute].origin; START_T = 0; resetView(); replan(); });
+document.getElementById('routerow').addEventListener('click', e => {
+  const btn = e.target.closest('.routebtn');
+  if (!btn || btn.dataset.route === activeRoute) return;
+  activeRoute = btn.dataset.route;
+  document.querySelectorAll('.routebtn').forEach(b => b.classList.toggle('active', b.dataset.route === activeRoute));
+  const r = ROUTES[activeRoute];
+  DEST = r.dest; DEST_LABEL = r.destLabel; DEST_NAME = r.destName;
+  origin = r.origin; START_T = 0;
+  document.getElementById('reset').textContent = r.resetLabel;
+  resetView(); replan();
+});
 document.getElementById('zoom-reset').addEventListener('click', resetView);
 document.getElementById('legend-bar').style.background =
   `linear-gradient(90deg,${WIND_STOPS.map(s => windColor(s[0])).join(',')})`;

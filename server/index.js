@@ -14,8 +14,12 @@ const STATIC_DIR = process.env.STATIC_DIR || path.join(ROOT, 'public');
 
 console.log('[server] starting — PORT:', PORT, 'CACHE_DIR:', CACHE_DIR, 'ROOT:', ROOT);
 
-const SF   = { lat: 37.60,   lon: -122.90   };
-const DEST = { lat: 21.4806, lon: -157.7725 };
+const SF         = { lat: 37.60,   lon: -122.90   };
+const SAN_PEDRO  = { lat: 33.6917, lon: -118.2917 };
+const DEST       = { lat: 21.4806, lon: -157.7725 };
+// Grid start uses SF's latitude with San Pedro's (more easterly) longitude so the
+// bounding box covers both the Pac Cup (SF) and Transpac (San Pedro) corridors.
+const GRID_START = { lat: SF.lat, lon: SAN_PEDRO.lon };
 
 let mem      = null;   // { cycle, grid } hot-path cache
 let inflight = null;   // de-dupe concurrent lazy prefetch (prevents upstream stampede)
@@ -57,7 +61,7 @@ async function loadCachedGrid(cycle) {
 }
 
 export async function refreshCache(cycle) {
-  const raw  = await fetchForecastGrid({ start: SF, dest: DEST, step: 1.5 });
+  const raw  = await fetchForecastGrid({ start: GRID_START, dest: DEST, step: 1.5 });
   // Flatten Float32Arrays → plain arrays for JSON storage (typed arrays don't survive JSON.stringify).
   // Keep the plain-array version in mem so both cache paths return the same shape.
   const grid = Object.fromEntries(

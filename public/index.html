@@ -192,6 +192,14 @@
     border: 1px solid var(--hairline); border-radius: 2px; padding: 8px; font-family: 'IBM Plex Mono', monospace;
     font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; cursor: pointer; transition: background .15s; }
   #depart:hover { background: rgba(63,205,224,0.1); }
+  #routerow { display: flex; margin-bottom: 10px; }
+  .routebtn { flex: 1; background: transparent; color: var(--grid-text);
+    border: 1px solid var(--hairline); padding: 6px 0;
+    font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+    letter-spacing: 0.14em; text-transform: uppercase; cursor: pointer; transition: background .15s, color .15s; }
+  .routebtn:first-child { border-radius: 2px 0 0 2px; }
+  .routebtn:last-child  { border-radius: 0 2px 2px 0; border-left: none; }
+  .routebtn.active { background: rgba(63,205,224,0.15); color: var(--cyan); border-color: rgba(63,205,224,0.5); }
   #pick-banner { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 20;
     background: rgba(6,16,25,0.92); border: 1px solid rgba(255,177,59,0.55); color: var(--amber);
     padding: 8px 18px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.08em;
@@ -231,6 +239,10 @@
 <div class="panel" id="controls">
   <div id="stale-bar" hidden>⚠ New GFS cycle available <button id="stale-reload">Refresh</button></div>
   <h1>Pacific Passage</h1>
+  <div id="routerow">
+    <button class="routebtn active" data-route="paccup">Pac Cup</button>
+    <button class="routebtn" data-route="transpac">Transpac</button>
+  </div>
   <div class="sub" id="boatsub">SANTA CRUZ 40 · ORR US43259</div>
   <div class="status" id="status">◌ initializing…</div>
   <div class="boatrow">
