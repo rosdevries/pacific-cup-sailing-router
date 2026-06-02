@@ -24,7 +24,7 @@ const SAN_PEDRO  = { lat: 33.6917,  lon: -118.2917  }; // Transpac start line
 
 const ROUTES = {
   paccup:   { origin: SF,        dest: { lat: 21.4806, lon: -157.7725 }, destLabel: 'KANEOHE BAY',  destName: 'Kaneohe Bay',  resetLabel: 'Reset to San Francisco' },
-  transpac: { origin: SAN_PEDRO, dest: { lat: 21.2454, lon: -157.8167 }, destLabel: 'DIAMOND HEAD', destName: 'Diamond Head', resetLabel: 'Reset to San Pedro'     },
+  transpac: { origin: SAN_PEDRO, dest: { lat: 21.245417, lon: -157.816694 }, destLabel: 'DIAMOND HEAD', destName: 'Diamond Head', resetLabel: 'Reset to San Pedro'     },
 };
 let DEST      = ROUTES.paccup.dest;
 let DEST_LABEL = ROUTES.paccup.destLabel;

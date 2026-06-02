@@ -53,7 +53,7 @@ async function metadataLatestCycle() {
 async function loadCachedGrid(cycle) {
   if (mem && mem.cycle === cycle) return mem.grid;   // hot
   try {
-    const buf = await readFile(path.join(CACHE_DIR, `forecast-v2-${cycle}.json`), 'utf8');
+    const buf = await readFile(path.join(CACHE_DIR, `forecast-v3-${cycle}.json`), 'utf8');
     const grid = JSON.parse(buf);
     mem = { cycle, grid };
     return grid;
@@ -70,7 +70,7 @@ export async function refreshCache(cycle) {
   grid.cycle = new Date(cycle * 1000).toISOString();
   const payload = JSON.stringify(grid);
   await mkdir(CACHE_DIR, { recursive: true });
-  await writeFile(path.join(CACHE_DIR, `forecast-v2-${cycle}.json`), payload);
+  await writeFile(path.join(CACHE_DIR, `forecast-v3-${cycle}.json`), payload);
   await writeFile(path.join(CACHE_DIR, 'latest.json'), payload);
   mem = { cycle, grid };
   return grid;
