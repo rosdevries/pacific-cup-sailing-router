@@ -43,10 +43,10 @@ export async function fetchForecastGrid({ start, dest, step = 1.5, windDays = 14
   const grid = buildGrid(bboxFor([start, dest]), step);
   const [wind, marine] = await Promise.all([
     omFetch('https://api.open-meteo.com/v1/forecast', grid,
-      { hourly: 'wind_speed_10m,wind_direction_10m', wind_speed_unit: 'kn', forecast_days: String(windDays) },
+      { hourly: 'wind_speed_10m,wind_direction_10m,pressure_msl', wind_speed_unit: 'kn', forecast_days: String(windDays) },
       signal),
     omFetch('https://marine-api.open-meteo.com/v1/marine', grid,
-      { hourly: 'wave_height,wave_direction,wave_period,ocean_current_velocity,ocean_current_direction', length_unit: 'metric', forecast_days: String(marineDays) },
+      { hourly: 'wave_height,wave_direction,wave_period,swell_wave_direction,ocean_current_velocity,ocean_current_direction', length_unit: 'metric', forecast_days: String(marineDays) },
       signal),
   ]);
 
@@ -68,8 +68,9 @@ export async function fetchForecastGrid({ start, dest, step = 1.5, windDays = 14
     lat0: grid.lat0, lon0: grid.lon0, dLat: grid.dLat, dLon: grid.dLon,
     nLat, nLon,
     marineHorizonHours: (mE[mLast] - epoch0) / 3600,
-    tws: F(), waveHeight: F(), wavePeriod: F(), curSpeed: F(),
+    tws: F(), waveHeight: F(), wavePeriod: F(), curSpeed: F(), pressure: F(),
     twd_x: F(), twd_y: F(), waveDir_x: F(), waveDir_y: F(), curDir_x: F(), curDir_y: F(),
+    swellDir_x: F(), swellDir_y: F(),
   };
 
   const sd = (xa, ya, o, deg) => {
@@ -90,6 +91,8 @@ export async function fetchForecastGrid({ start, dest, step = 1.5, windDays = 14
       sd(env.waveDir_x, env.waveDir_y, o, m.wave_direction[mi]);
       env.curSpeed[o]   = num(m.ocean_current_velocity[mi]) * curK;
       sd(env.curDir_x, env.curDir_y, o, m.ocean_current_direction[mi]);
+      env.pressure[o]   = num(w.pressure_msl[ti]);
+      sd(env.swellDir_x, env.swellDir_y, o, m.swell_wave_direction[mi]);
     }
   }
   return env;
@@ -129,8 +132,10 @@ export function makeSampler(env) {
       waveHeight: sc('waveHeight'),
       wavePeriod: sc('wavePeriod'),
       waveDir:    dr('waveDir'),
+      swellDir:   dr('swellDir'),
       curSpeed:   sc('curSpeed'),
       curDir:     dr('curDir'),
+      pressure:   sc('pressure'),
     };
   };
 }

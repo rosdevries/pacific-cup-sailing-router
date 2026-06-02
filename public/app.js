@@ -122,7 +122,7 @@ function compute() {
 function synthEnv(lat, lon) {
   const d = distNm(HIGH, { lat, lon }), brg = bearing(HIGH, { lat, lon }), twd = (brg + 270) % 360;
   const tws = Math.min(27, 27 * (1 - Math.exp(-d / 520)));
-  return { tws, twd, waveHeight: 0.18*tws+0.7, wavePeriod: 5+tws/3.5, waveDir: twd, curSpeed: 0.3, curDir: 270 };
+  return { tws, twd, waveHeight: 0.18*tws+0.7, wavePeriod: 5+tws/3.5, waveDir: twd, swellDir: twd, curSpeed: 0.3, curDir: 270, pressure: 1013 };
 }
 function getEnv(lat, lon, t) {
   return (FIELD === 'live' && SAMPLER) ? SAMPLER(lat, lon, t || 0) : synthEnv(lat, lon);
@@ -345,6 +345,83 @@ function drawSailChanges() {
     prev = cat;
   }
 }
+function drawCurrents() {
+  const step = 2.5;
+  for (let lat = RVIEW.latMin + step/2; lat < RVIEW.latMax; lat += step)
+    for (let lon = RVIEW.lonMin + step/2; lon < RVIEW.lonMax; lon += step) {
+      const e = getEnv(lat, lon, DISP_T);
+      if (e.curSpeed < 0.05) continue;
+      const [x, y] = px(lat, lon);
+      const len = 6 + Math.min(18, e.curSpeed * 14);
+      arrow(x, y, e.curDir, len, 'rgba(100,200,255,0.7)');
+    }
+}
+function _marchSegs(lats, lons, vals, iso) {
+  const segs = [];
+  const nR = lats.length, nC = lons.length;
+  for (let r = 0; r < nR - 1; r++) {
+    for (let c = 0; c < nC - 1; c++) {
+      const la0 = lats[r], la1 = lats[r+1], lo0 = lons[c], lo1 = lons[c+1];
+      const v00 = vals[r][c], v01 = vals[r][c+1], v10 = vals[r+1][c], v11 = vals[r+1][c+1];
+      const code = (v00>=iso?1:0)|(v01>=iso?2:0)|(v10>=iso?4:0)|(v11>=iso?8:0);
+      if (code === 0 || code === 15) continue;
+      const lp = (va, vb, fa, fb) => fa + (fb - fa) * ((iso - va) / (vb - va));
+      const t  = () => px(la0, lp(v00, v01, lo0, lo1));
+      const b  = () => px(la1, lp(v10, v11, lo0, lo1));
+      const l  = () => px(lp(v00, v10, la0, la1), lo0);
+      const rE = () => px(lp(v01, v11, la0, la1), lo1);
+      const sg = (p1, p2) => segs.push([...p1, ...p2]);
+      switch (code) {
+        case  1: case 14: sg(t(), l());        break;
+        case  2: case 13: sg(t(), rE());       break;
+        case  3: case 12: sg(l(), rE());       break;
+        case  4: case 11: sg(l(), b());        break;
+        case  5: case 10: sg(t(), b());        break;
+        case  6: sg(t(), rE()); sg(l(), b());  break;
+        case  7: case  8: sg(rE(), b());       break;
+        case  9: sg(t(), l());  sg(rE(), b()); break;
+      }
+    }
+  }
+  return segs;
+}
+function drawIsobars() {
+  const step = 2, pLo = 976, pHi = 1044;
+  const lats = [], lons = [];
+  for (let lat = RVIEW.latMin; lat <= RVIEW.latMax + 0.01; lat += step) lats.push(lat);
+  for (let lon = RVIEW.lonMin; lon <= RVIEW.lonMax + 0.01; lon += step) lons.push(lon);
+  const vals = lats.map(la => lons.map(lo2 => getEnv(la, lo2, DISP_T).pressure));
+  ctx.save();
+  ctx.setLineDash([4, 4]);
+  ctx.font = "9px 'IBM Plex Mono'";
+  for (let iso = pLo; iso <= pHi; iso += 4) {
+    const segs = _marchSegs(lats, lons, vals, iso);
+    if (!segs.length) continue;
+    const major = iso % 20 === 0;
+    ctx.strokeStyle = major ? 'rgba(200,200,255,0.55)' : 'rgba(180,180,255,0.35)';
+    ctx.lineWidth = major ? 1.2 : 0.7;
+    ctx.beginPath();
+    for (const [x1,y1,x2,y2] of segs) { ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); }
+    ctx.stroke();
+    if (major && segs.length > 0) {
+      const s = segs[Math.floor(segs.length / 2)];
+      ctx.fillStyle = 'rgba(200,200,255,0.65)';
+      ctx.fillText(`${iso}`, (s[0]+s[2])/2, (s[1]+s[3])/2);
+    }
+  }
+  ctx.restore();
+}
+function drawSwellDir() {
+  const step = 2.5;
+  for (let lat = RVIEW.latMin + step/2; lat < RVIEW.latMax; lat += step)
+    for (let lon = RVIEW.lonMin + step/2; lon < RVIEW.lonMax; lon += step) {
+      const e = getEnv(lat, lon, DISP_T);
+      if (e.waveHeight < 0.3) continue;
+      const [x, y] = px(lat, lon);
+      const len = 5 + Math.min(16, e.waveHeight * 4);
+      arrow(x, y, (e.swellDir + 180) % 360, len, 'rgba(58,110,185,0.75)');
+    }
+}
 function marker(p, color, r) {
   const [x,y] = px(p.lat,p.lon); ctx.fillStyle = color; ctx.strokeStyle = '#061019'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill(); ctx.stroke();
@@ -364,6 +441,9 @@ function draw() {
   drawOcean(); drawGraticule();
   if (document.getElementById('t-wave').checked) drawWaves();
   if (document.getElementById('t-wind').checked) drawWind();
+  if (document.getElementById('t-curr').checked) drawCurrents();
+  if (document.getElementById('t-isobar').checked) drawIsobars();
+  if (document.getElementById('t-swell').checked) drawSwellDir();
   if (document.getElementById('t-land').checked) drawLand();
   if (document.getElementById('t-iso').checked) drawIsochrones(origin);
   if (document.getElementById('t-track').checked) { drawTrack(); drawGybes(); drawSailChanges(); }
