@@ -7,8 +7,9 @@ import { linesFromContent, parseORR } from '/src/orrParse.js';
 const { boats: BOATS, boatOrder: BOAT_ORDER } = await fetch('/data/boats.json').then(r => r.json());
 
 // ---- Constants ----
-const SF   = { lat: 37.60,   lon: -122.90   };
-const DEST = { lat: 21.4806, lon: -157.7725 };
+const SF         = { lat: 37.60,    lon: -122.90    };
+const SAN_PEDRO  = { lat: 33.6917,  lon: -118.2917  }; // Transpac start line
+const DEST       = { lat: 21.4806,  lon: -157.7725  };
 // Render a wider area than the land-mask coverage so Hawaii clears the left controls panel
 const RVIEW = { latMin: 14, latMax: 44.5, lonMin: -175, lonMax: -108 };
 
@@ -333,6 +334,7 @@ function drawMarkers() {
   const [hx,hy] = px(DEST.lat,DEST.lon); ctx.strokeStyle = '#ff6b5e'; ctx.lineWidth = 1.6;
   ctx.beginPath(); ctx.arc(hx,hy,7,0,7); ctx.moveTo(hx-11,hy); ctx.lineTo(hx+11,hy); ctx.moveTo(hx,hy-11); ctx.lineTo(hx,hy+11); ctx.stroke();
   label(DEST, 'KANEOHE BAY', '#ff6b5e');
+  marker(SAN_PEDRO, '#4a7d8a', 4); label(SAN_PEDRO, 'SAN PEDRO', '#4a7d8a');
   if (!livePos) { marker(origin, '#5fe39a', 5); label(origin, origin === SF ? 'SAN FRANCISCO' : 'POSITION', '#5fe39a'); }
 }
 function draw() {
