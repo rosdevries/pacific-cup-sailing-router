@@ -34,7 +34,7 @@ Do not re-derive the routing math or re-litigate the decisions below — port th
   the destination wins; backtrack parent pointers. Full math in `docs/ALGORITHMS.md`.
 - **Polars: ORR / ORC.** Normalized schema `{tws[], twa[], speed[twa][tws], beat:{angle[],speed[]}}`.
   Built-in library in `data/boats.json` (Santa Cruz 40 from a real ORR cert + TP52 / Sun Fast
-  3300 / Cape 31 from ORC public VPP data). Users can upload an ORR certificate PDF; the
+  3300 / Cal 40 from ORR cert data). Users can upload an ORR certificate PDF; the
   prototype parses **page 2's first "Table of Boat Speed Polars"** (not the page-3 fleet-adjusted
   copy) in-browser via pdf.js.
 - **Polar efficiency factor** (default 0.90): scales achieved speed vs the VPP target to model

@@ -12,7 +12,7 @@ your boat (or upload an ORR certificate), tune polar efficiency, and track your 
 - Isochrone weather routing that dives south around the Pacific High like the real fleet does.
 - Live forecast from **Open-Meteo** (GFS wind + GFS-Wave waves/currents), with a synthetic
   fallback so it always renders offline.
-- Boat library (Santa Cruz 40 + TP52 / Sun Fast 3300 / Cape 31) and **ORR certificate upload**
+- Boat library (Santa Cruz 40 + TP52 / Sun Fast 3300 / Cal 40) and **ORR certificate upload**
   (parses the page-2 polar in-browser).
 - **Polar efficiency** control to match real-world performance (default 90%).
 - GPS: one-shot "Route from my location" and continuous live tracking (`watchPosition`) with a
