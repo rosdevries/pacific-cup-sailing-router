@@ -134,11 +134,19 @@ function panBy(dx, dy)          { _applyPan(dx, dy);          ZOOMED = true; _up
 function resetView()            { Object.assign(RVIEW, BASE_RVIEW); ZOOMED = false; _updateZoomBtn(); scheduleDraw(); }
 
 // ---- Loading overlay ----
-const _loaderEl = document.getElementById('loader');
+const _loaderEl  = document.getElementById('loader');
+const _loaderMsg = document.getElementById('loader-msg');
+let _initialLoaderHidden = false;
+
 function hideLoader() {
   if (!_loaderEl || _loaderEl.classList.contains('hidden')) return;
   _loaderEl.classList.add('hidden');
-  _loaderEl.addEventListener('transitionend', () => _loaderEl.remove(), { once: true });
+  _initialLoaderHidden = true;
+}
+function showLoader(msg) {
+  if (!_loaderEl) return;
+  if (_loaderMsg) _loaderMsg.textContent = msg;
+  _loaderEl.classList.remove('hidden');
 }
 
 // ---- Worker ----
@@ -167,6 +175,7 @@ worker.onmessage = (e) => {
 function compute() {
   return new Promise(resolve => {
     resolveCompute = resolve;
+    if (_initialLoaderHidden) showLoader('Re-routing…');
     worker.postMessage({ origin, dest: ROUTE_DEST, polar: POLAR, polarEff: POLAR_EFF, grid: GRID, startT: START_T });
   });
 }
