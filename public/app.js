@@ -94,9 +94,9 @@ function _applyPan(dx, dy) {
 function _updateZoomBtn() {
   document.getElementById('zoom-reset').style.display = ZOOMED ? 'block' : 'none';
 }
-function zoomAt(cx, cy, factor) { _applyZoom(cx, cy, factor); ZOOMED = true; _updateZoomBtn(); draw(); }
-function panBy(dx, dy)          { _applyPan(dx, dy);          ZOOMED = true; _updateZoomBtn(); draw(); }
-function resetView()            { Object.assign(RVIEW, BASE_RVIEW); ZOOMED = false; _updateZoomBtn(); draw(); }
+function zoomAt(cx, cy, factor) { _applyZoom(cx, cy, factor); ZOOMED = true; _updateZoomBtn(); scheduleDraw(); }
+function panBy(dx, dy)          { _applyPan(dx, dy);          ZOOMED = true; _updateZoomBtn(); scheduleDraw(); }
+function resetView()            { Object.assign(RVIEW, BASE_RVIEW); ZOOMED = false; _updateZoomBtn(); scheduleDraw(); }
 
 // ---- Worker ----
 const worker = new Worker('/worker.js', { type: 'module' });
@@ -104,7 +104,8 @@ let resolveCompute = null;
 worker.onmessage = (e) => {
   if (e.data.type === 'result') {
     result = e.data;
-    draw();
+    telemetry();
+    scheduleDraw();
     if (resolveCompute) { resolveCompute(); resolveCompute = null; }
   } else if (e.data.type === 'error') {
     console.error('[worker]', e.data.message);
@@ -147,7 +148,7 @@ function waveColor(h) {
 function resize() {
   dpr = Math.min(2, window.devicePixelRatio || 1); W = window.innerWidth; H = window.innerHeight;
   cv.width = W*dpr; cv.height = H*dpr; cv.style.width = W+'px'; cv.style.height = H+'px';
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); draw();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); scheduleDraw();
 }
 function drawOcean() {
   const g = ctx.createRadialGradient(W*0.5, H*0.42, 80, W*0.5, H*0.5, Math.max(W,H)*0.75);
@@ -437,6 +438,12 @@ function drawMarkers() {
   marker(SAN_PEDRO, '#4a7d8a', 4); label(SAN_PEDRO, 'SAN PEDRO', '#4a7d8a');
   if (!livePos) { marker(origin, '#5fe39a', 5); label(origin, origin === SF ? 'SAN FRANCISCO' : 'POSITION', '#5fe39a'); }
 }
+let _rafPending = false;
+function scheduleDraw() {
+  if (_rafPending) return;
+  _rafPending = true;
+  requestAnimationFrame(() => { _rafPending = false; draw(); });
+}
 function draw() {
   drawOcean(); drawGraticule();
   if (document.getElementById('t-wave').checked) drawWaves();
@@ -447,7 +454,7 @@ function draw() {
   if (document.getElementById('t-land').checked) drawLand();
   if (document.getElementById('t-iso').checked) drawIsochrones(origin);
   if (document.getElementById('t-track').checked) { drawTrack(); drawGybes(); drawSailChanges(); }
-  drawMarkers(); telemetry(); if (livePos) { drawBoatHeading(); placeBoatDot(); }
+  drawMarkers(); if (livePos) { drawBoatHeading(); placeBoatDot(); }
 }
 
 // ---- Telemetry ----
@@ -510,7 +517,7 @@ function nearestOnTrack(mx, my) {
 // ---- Cursor interaction ----
 const cursorEl = document.getElementById('cursor'), routedot = document.getElementById('routedot');
 function restoreDispT() {
-  if (FIELD === 'live' && DISP_T !== PINNED_T) { DISP_T = PINNED_T; updateTimeLabel(); draw(); }
+  if (FIELD === 'live' && DISP_T !== PINNED_T) { DISP_T = PINNED_T; updateTimeLabel(); scheduleDraw(); }
 }
 function showTooltip(mx, my) {
   const near = document.getElementById('t-track').checked ? nearestOnTrack(mx, my) : null;
@@ -518,7 +525,7 @@ function showTooltip(mx, my) {
   if (near && near.d < 14) {
     if (FIELD === 'live') {
       const snapT = Math.max(0, Math.min(MAXT, Math.round(near.t)));
-      if (snapT !== DISP_T) { DISP_T = snapT; updateTimeLabel(); draw(); }
+      if (snapT !== DISP_T) { DISP_T = snapT; updateTimeLabel(); scheduleDraw(); }
     }
     const e = getEnv(near.lat, near.lon, near.t), twa = angDiff(e.twd, near.heading);
     const tack = (((e.twd - near.heading + 540) % 360) - 180) > 0 ? 'STBD' : 'PORT';
@@ -594,7 +601,7 @@ cv.addEventListener('touchmove', ev => {
     _applyPan(mx - panStart.x, my - panStart.y);
     if (pinchDist0) _applyZoom(mx, my, dist / pinchDist0);
     pinchDist0 = dist; panStart = { x: mx, y: my };
-    ZOOMED = true; _updateZoomBtn(); draw();
+    ZOOMED = true; _updateZoomBtn(); scheduleDraw();
     panMoved = true;
   }
 }, { passive: false });
@@ -641,7 +648,7 @@ function setupSlider(live) {
   if (!live) return;
   const s = document.getElementById('timeslider'); s.max = Math.floor(MAXT); s.step = 3; s.value = 0; DISP_T = 0; PINNED_T = 0; updateTimeLabel();
 }
-document.getElementById('timeslider').addEventListener('input', e => { PINNED_T = +e.target.value; DISP_T = PINNED_T; updateTimeLabel(); draw(); });
+document.getElementById('timeslider').addEventListener('input', e => { PINNED_T = +e.target.value; DISP_T = PINNED_T; updateTimeLabel(); scheduleDraw(); });
 document.getElementById('effslider').addEventListener('input', e => { document.getElementById('efflabel').textContent = e.target.value+'%'; });
 document.getElementById('effslider').addEventListener('change', e => { POLAR_EFF = +e.target.value / 100; compute(); });
 
@@ -825,7 +832,7 @@ async function maybeResolve() {
 function onFix(p) {
   livePos = { lat: p.coords.latitude, lon: p.coords.longitude };
   liveCog = p.coords.heading; liveSog = p.coords.speed;
-  placeBoatDot(); draw();
+  placeBoatDot(); scheduleDraw();
   const off = !inChart(livePos.lat, livePos.lon) || isLand(livePos.lat, livePos.lon);
   updateHud(off ? 'Outside the charted SF–Hawaii corridor — marker only.' : '', off ? 'err' : '');
   maybeResolve();
@@ -849,7 +856,7 @@ function stopTracking() {
   livePos = null; liveCog = liveSog = null;
   document.getElementById('boatdot').hidden = true; document.getElementById('livehud').hidden = true;
   const btn = document.getElementById('track'); btn.classList.remove('active'); btn.textContent = '▶ Track my position';
-  draw();
+  scheduleDraw();
 }
 document.getElementById('track').addEventListener('click', function() { watchId == null ? startTracking() : stopTracking(); });
 
