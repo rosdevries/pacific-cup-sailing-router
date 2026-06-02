@@ -150,5 +150,12 @@ export function expectedCycle() {
 }
 
 export function cycLabel(c) {
-  return new Date(c * 1000).toISOString().slice(0, 13).replace('T', ' ') + 'Z';
+  const d = new Date(c * 1000);
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', hour12: false, timeZoneName: 'short'
+  }).formatToParts(d);
+  const get = t => parts.find(p => p.type === t).value;
+  return `${get('year')}-${get('month')}-${get('day')} ${get('hour')} ${get('timeZoneName')}`;
 }

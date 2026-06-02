@@ -3,6 +3,18 @@ import { makeSampler, expectedCycle, cycLabel } from '/src/forecast.js';
 import { decodePngData, maskLand, VIEW } from '/src/landmask.js';
 import { linesFromContent, parseORR } from '/src/orrParse.js';
 
+function fmtPacific(epochMs) {
+  const d = new Date(epochMs);
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles',
+    month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+    hour12: false, timeZoneName: 'short'
+  }).formatToParts(d);
+  const get = t => parts.find(p => p.type === t).value;
+  return `${get('month')}-${get('day')} ${get('hour')}:${get('minute')} ${get('timeZoneName')}`;
+}
+
 // ---- Boats (loaded from JSON) ----
 const { boats: BOATS, boatOrder: BOAT_ORDER } = await fetch('/data/boats.json').then(r => r.json());
 
@@ -720,8 +732,8 @@ function applyEnv(env) {
 function setStatus(t, c) { const s = document.getElementById('status'); s.textContent = t; s.className = 'status '+(c||''); }
 function updateTimeLabel() {
   const d = Math.floor(DISP_T/24), h = Math.round(DISP_T - d*24);
-  const when = new Date((EPOCH0 + DISP_T*3600)*1000).toISOString().slice(5,16).replace('T',' ');
-  document.getElementById('timelabel').textContent = '+'+d+'d '+h+'h · '+when+'Z';
+  const when = fmtPacific((EPOCH0 + DISP_T*3600)*1000);
+  document.getElementById('timelabel').textContent = '+'+d+'d '+h+'h · '+when;
 }
 function setupSlider(live) {
   const w = document.getElementById('timewrap'); w.style.display = live ? 'block' : 'none';
@@ -826,8 +838,8 @@ function updateDepTime() {
   if (h === 0) { disp.textContent = 'Now'; return; }
   if (FIELD === 'live') {
     const d = Math.floor(h / 24), r = h % 24;
-    const when = new Date((EPOCH0 + h * 3600) * 1000).toISOString().slice(5, 16).replace('T', ' ');
-    disp.textContent = `+${d}d ${r}h · ${when}Z`;
+    const when = fmtPacific((EPOCH0 + h * 3600) * 1000);
+    disp.textContent = `+${d}d ${r}h · ${when}`;
   } else {
     const d = Math.floor(h / 24), r = h % 24;
     disp.textContent = `+${d}d ${r}h`;
