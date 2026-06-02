@@ -32,9 +32,9 @@ export function backtrack(n) {
 
 // sampler: (lat, lon, t) → { tws, twd, waveHeight, wavePeriod, waveDir, curSpeed, curDir }
 // legHitsLand: (a, b) → boolean
-export function route(start, dest, { sampler, polar, polarEff, legHitsLand }) {
+export function route(start, dest, { sampler, polar, polarEff, legHitsLand, startT = 0 }) {
   const dt = 3, hStep = 8, sec = 2, maxH = 384, maxSog = 16;
-  let front = [{ lat: start.lat, lon: start.lon, t: 0, parent: null }];
+  let front = [{ lat: start.lat, lon: start.lon, t: startT, parent: null }];
   const isochrones = [];
 
   for (let el = 0; el < maxH; el += dt) {

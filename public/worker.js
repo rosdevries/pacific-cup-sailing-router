@@ -40,7 +40,7 @@ async function ensureMask() {
 
 // ---- Message handler ----
 self.onmessage = async (e) => {
-  const { origin, dest, polar, polarEff, grid } = e.data;
+  const { origin, dest, polar, polarEff, grid, startT = 0 } = e.data;
   try {
     await ensureMask();
     const sampler = grid
@@ -49,7 +49,7 @@ self.onmessage = async (e) => {
     const lhl = mask
       ? (a, b) => legHitsLand(mask, a, b)
       : () => false;
-    const result = route(origin, dest, { sampler, polar, polarEff, legHitsLand: lhl });
+    const result = route(origin, dest, { sampler, polar, polarEff, legHitsLand: lhl, startT });
     self.postMessage({ type: 'result', ...result });
   } catch (err) {
     self.postMessage({ type: 'error', message: err.message });

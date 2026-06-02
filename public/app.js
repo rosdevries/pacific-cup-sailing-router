@@ -61,6 +61,8 @@ let MASK = null, LANDCANVAS = null;
 let SAMPLER = null, FIELD = 'synthetic', GRID = null;
 let DISP_T = 0, PINNED_T = 0, EPOCH0 = Math.floor(Date.now() / 1000), HORIZON_H = 192, MAXT = 384;
 let result = null, origin = SF;
+let START_T = 0;
+let pickingForModal = false;
 let _isoCache = null; // pre-processed isochrone draw data, rebuilt on each new result
 let CACHE = null, LOAD_CYCLE = null, LIVE_OFF = false, reqSeq = 0;
 let ZOOMED = false;
@@ -105,6 +107,12 @@ let resolveCompute = null;
 worker.onmessage = (e) => {
   if (e.data.type === 'result') {
     result = e.data;
+    if (START_T > 0 && FIELD === 'live') {
+      const sl = document.getElementById('timeslider');
+      sl.value = Math.min(START_T, +sl.max);
+      DISP_T = PINNED_T = +sl.value;
+      updateTimeLabel();
+    }
     buildIsoCache();
     scheduleDraw();
     telemetry();
@@ -117,7 +125,7 @@ worker.onmessage = (e) => {
 function compute() {
   return new Promise(resolve => {
     resolveCompute = resolve;
-    worker.postMessage({ origin, dest: DEST, polar: POLAR, polarEff: POLAR_EFF, grid: GRID });
+    worker.postMessage({ origin, dest: DEST, polar: POLAR, polarEff: POLAR_EFF, grid: GRID, startT: START_T });
   });
 }
 
@@ -242,6 +250,7 @@ function buildIsoCache() {
   const coarse = tr.filter((_, i) => i % 5 === 0); // thin track for faster proximity check
   const inCorridor = p => !coarse.length || coarse.some(t => distNm(p, t) < CORR);
   _isoCache = result.isochrones.map((front, i) => {
+    if (i < 8) return null; // skip first 24 h — too close to origin, messy near land
     if (front.length < 2) return null;
     const pts = front
       .filter(inCorridor)
@@ -531,10 +540,12 @@ function timeToNextSailChange() {
 function telemetry() {
   const el = document.getElementById('telemetry'); if (!result) { el.innerHTML = ''; return; }
   const gc = distNm(origin, DEST), sailed = sailedNm(result.track);
-  el.innerHTML = `<div class="row"><span class="k">PASSAGE TIME</span></div><div class="big">${fmtDur(result.hours)}</div>`
+  const dur = result.hours - START_T;
+  el.innerHTML = `<div class="row"><span class="k">PASSAGE TIME</span></div><div class="big">${fmtDur(dur)}</div>`
+    + (START_T > 0 ? `<div class="row"><span class="k">departs</span><span class="v">+${fmtDur(START_T)}</span></div>` : '')
     + `<div class="row"><span class="k">great-circle</span><span class="v">${Math.round(gc)} nm</span></div>`
     + `<div class="row"><span class="k">sailed</span><span class="v">${Math.round(sailed)} nm</span></div>`
-    + `<div class="row"><span class="k">avg SOG</span><span class="v">${(sailed/result.hours).toFixed(1)} kt</span></div>`
+    + `<div class="row"><span class="k">avg SOG</span><span class="v">${(sailed/Math.max(1,dur)).toFixed(1)} kt</span></div>`
     + `<div class="row"><span class="k">extra distance</span><span class="v">+${Math.round((sailed/gc-1)*100)}%</span></div>`
     + `<div class="row"><span class="k">gybes</span><span class="v">${gybes(result.track).length}</span></div>`;
 }
@@ -614,6 +625,15 @@ cv.addEventListener('mouseleave', () => {
 cv.addEventListener('click', ev => {
   if (panMoved) { panMoved = false; return; }
   const p = unpx(ev.clientX, ev.clientY);
+  if (pickingForModal) {
+    document.getElementById('dep-lat').value = p.lat.toFixed(2);
+    document.getElementById('dep-lon').value = (-p.lon).toFixed(2);
+    document.getElementById('pick-banner').hidden = true;
+    pickingForModal = false;
+    cv.style.cursor = 'crosshair';
+    document.getElementById('depart-modal').hidden = false;
+    return;
+  }
   if (distNm(p, DEST) < 60) return;
   origin = { lat: +p.lat.toFixed(2), lon: +p.lon.toFixed(2) }; replan();
 });
@@ -662,7 +682,16 @@ cv.addEventListener('touchend', ev => {
       else {
         lastTap = now;
         const p = unpx(touchStart.x, touchStart.y);
-        if (distNm(p, DEST) >= 60) { origin = { lat: +p.lat.toFixed(2), lon: +p.lon.toFixed(2) }; replan(); }
+        if (pickingForModal) {
+          document.getElementById('dep-lat').value = p.lat.toFixed(2);
+          document.getElementById('dep-lon').value = (-p.lon).toFixed(2);
+          document.getElementById('pick-banner').hidden = true;
+          pickingForModal = false;
+          cv.style.cursor = 'crosshair';
+          document.getElementById('depart-modal').hidden = false;
+        } else if (distNm(p, DEST) >= 60) {
+          origin = { lat: +p.lat.toFixed(2), lon: +p.lon.toFixed(2) }; replan();
+        }
       }
     }
     panStart = touchStart = null; pinchDist0 = null; panMoved = false;
@@ -674,7 +703,7 @@ cv.addEventListener('touchend', ev => {
 
 // ---- Controls wiring ----
 document.querySelectorAll('#controls input').forEach(c => c.addEventListener('change', scheduleDraw));
-document.getElementById('reset').addEventListener('click', () => { origin = SF; resetView(); replan(); });
+document.getElementById('reset').addEventListener('click', () => { origin = SF; START_T = 0; resetView(); replan(); });
 document.getElementById('zoom-reset').addEventListener('click', resetView);
 document.getElementById('legend-bar').style.background =
   `linear-gradient(90deg,${WIND_STOPS.map(s => windColor(s[0])).join(',')})`;
@@ -770,6 +799,38 @@ async function loadCert(file) {
   } catch (err) { msg.textContent = '✗ '+err.message; msg.className = 'certmsg err'; }
 }
 
+// ---- Depart modal ----
+function openDepartModal() {
+  document.getElementById('dep-lat').value = origin.lat.toFixed(2);
+  document.getElementById('dep-lon').value = (-origin.lon).toFixed(2);
+  const sl = document.getElementById('dep-tslider');
+  sl.max = FIELD === 'live' ? Math.floor(MAXT) : 384;
+  sl.value = START_T;
+  updateDepTime();
+  document.getElementById('depart-modal').hidden = false;
+}
+function closeDepartModal() {
+  document.getElementById('depart-modal').hidden = true;
+  if (pickingForModal) {
+    pickingForModal = false;
+    document.getElementById('pick-banner').hidden = true;
+    cv.style.cursor = 'crosshair';
+  }
+}
+function updateDepTime() {
+  const h = +document.getElementById('dep-tslider').value;
+  const disp = document.getElementById('dep-tdisp');
+  if (h === 0) { disp.textContent = 'Now'; return; }
+  if (FIELD === 'live') {
+    const d = Math.floor(h / 24), r = h % 24;
+    const when = new Date((EPOCH0 + h * 3600) * 1000).toISOString().slice(5, 16).replace('T', ' ');
+    disp.textContent = `+${d}d ${r}h · ${when}Z`;
+  } else {
+    const d = Math.floor(h / 24), r = h % 24;
+    disp.textContent = `+${d}d ${r}h`;
+  }
+}
+
 // ---- Geolocation: one-shot ----
 function dm(v, pos, neg) { const h = v>=0?pos:neg, a = Math.abs(v), d = Math.floor(a), m = (a-d)*60; return d+'°'+m.toFixed(1)+"'"+h; }
 function geoModal(html) { document.getElementById('geo-body').innerHTML = html; document.getElementById('geo-modal').hidden = false; }
@@ -819,6 +880,26 @@ document.getElementById('geo').addEventListener('click', routeFromLocation);
 document.getElementById('geo-close').addEventListener('click', closeGeo);
 document.getElementById('geo-modal').addEventListener('click', function(e) { if (e.target.id === 'geo-modal') closeGeo(); });
 
+document.getElementById('depart').addEventListener('click', openDepartModal);
+document.getElementById('dep-cancel').addEventListener('click', closeDepartModal);
+document.getElementById('depart-modal').addEventListener('click', e => { if (e.target.id === 'depart-modal') closeDepartModal(); });
+document.getElementById('dep-pick').addEventListener('click', () => {
+  document.getElementById('depart-modal').hidden = true;
+  document.getElementById('pick-banner').hidden = false;
+  pickingForModal = true;
+  cv.style.cursor = 'cell';
+});
+document.getElementById('dep-tslider').addEventListener('input', updateDepTime);
+document.getElementById('dep-go').addEventListener('click', () => {
+  const latVal = +document.getElementById('dep-lat').value;
+  const lonVal = +document.getElementById('dep-lon').value;
+  if (!latVal || !lonVal) return;
+  origin = { lat: +latVal.toFixed(2), lon: +(-(+lonVal)).toFixed(2) };
+  START_T = +document.getElementById('dep-tslider').value;
+  closeDepartModal();
+  replan();
+});
+
 function regattamanUrl() {
   const d = new Date(), iso = d.toISOString().slice(0, 10), yr = d.getUTCFullYear();
   return 'https://regattaman.com/cert_list.php?lType=effD&effDate=' + iso +
@@ -833,7 +914,7 @@ function closeCert() { document.getElementById('cert-modal').hidden = true; }
 document.getElementById('cert-help-link').addEventListener('click', e => { e.preventDefault(); openCert(); });
 document.getElementById('cert-close').addEventListener('click', closeCert);
 document.getElementById('cert-modal').addEventListener('click', e => { if (e.target.id === 'cert-modal') closeCert(); });
-document.addEventListener('keydown', function(e) { if (e.key === 'Escape') { closeGeo(); closeCert(); } });
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') { closeGeo(); closeCert(); closeDepartModal(); } });
 
 // ---- Geolocation: continuous tracking ----
 function optimalHeadingDeg() {

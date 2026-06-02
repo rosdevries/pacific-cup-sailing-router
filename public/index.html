@@ -188,6 +188,39 @@
     color: var(--cyan); font-family: 'IBM Plex Mono', monospace; font-size: 10px; padding: 5px 14px;
     border-radius: 2px; cursor: pointer; letter-spacing: 0.1em; display: none; white-space: nowrap; }
   #zoom-reset:hover { background: rgba(63,205,224,0.1); }
+  #depart { margin-top: 6px; width: 100%; background: transparent; color: var(--cyan);
+    border: 1px solid var(--hairline); border-radius: 2px; padding: 8px; font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; cursor: pointer; transition: background .15s; }
+  #depart:hover { background: rgba(63,205,224,0.1); }
+  #pick-banner { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 20;
+    background: rgba(6,16,25,0.92); border: 1px solid rgba(255,177,59,0.55); color: var(--amber);
+    padding: 8px 18px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.08em;
+    border-radius: 3px; pointer-events: none; white-space: nowrap; }
+  #pick-banner[hidden] { display: none; }
+  .dep-field-label { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--grid-text); margin-bottom: 6px; }
+  .dep-coords { display: flex; gap: 10px; margin-bottom: 10px; }
+  .dep-coord { flex: 1; }
+  .dep-coord label { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 9px;
+    color: var(--grid-text); margin-bottom: 4px; letter-spacing: 0.08em; }
+  .dep-coord input[type=number] { width: 100%; background: rgba(255,255,255,0.06); color: var(--ink);
+    border: 1px solid rgba(255,255,255,0.18); border-radius: 4px; padding: 6px 8px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px; outline: none; appearance: textfield; }
+  .dep-coord input[type=number]:focus { border-color: var(--cyan); }
+  .dep-coord input[type=number]::-webkit-inner-spin-button { opacity: 0.4; }
+  .dep-pick { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--cyan);
+    cursor: pointer; display: inline-block; margin-bottom: 14px; }
+  .dep-pick:hover { text-decoration: underline; }
+  .dep-divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); margin: 14px 0; }
+  .dep-time-display { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--cyan);
+    margin: 8px 0 4px; }
+  .dep-buttons { display: flex; gap: 10px; margin-top: 20px; }
+  .dep-buttons button { flex: 1; padding: 8px; border-radius: 2px; font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; cursor: pointer; }
+  #dep-cancel { background: transparent; color: var(--grid-text); border: 1px solid rgba(255,255,255,0.15); }
+  #dep-cancel:hover { color: var(--ink); border-color: rgba(255,255,255,0.3); }
+  #dep-go { background: var(--cyan); color: var(--abyss); border: 1px solid var(--cyan); font-weight: 500; }
+  #dep-go:hover { filter: brightness(1.1); }
 </style>
 </head>
 <body>
@@ -232,6 +265,7 @@
   </div>
   <button id="track">▶ Track my position</button>
   <button id="geo">Route from my location</button>
+  <button id="depart">Route from location &amp; time</button>
   <button id="reset">Reset to San Francisco</button>
 </div>
 
@@ -260,6 +294,31 @@
     <button id="geo-close">Close</button>
   </div>
 </div>
+<div class="modal-backdrop" id="depart-modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-title">Route from location &amp; time</div>
+    <div class="dep-field-label">Departure position</div>
+    <div class="dep-coords">
+      <div class="dep-coord">
+        <label for="dep-lat">Latitude (°N)</label>
+        <input type="number" id="dep-lat" min="14" max="45" step="0.01">
+      </div>
+      <div class="dep-coord">
+        <label for="dep-lon">Longitude (°W)</label>
+        <input type="number" id="dep-lon" min="108" max="175" step="0.01">
+      </div>
+    </div>
+    <div class="dep-pick" id="dep-pick">⊕ Click map to set position</div>
+    <hr class="dep-divider">
+    <div class="dep-field-label">Departure time</div>
+    <input type="range" id="dep-tslider" min="0" max="384" value="0" step="3" style="width:100%;accent-color:var(--cyan);cursor:pointer;">
+    <div class="dep-time-display" id="dep-tdisp">Now</div>
+    <div class="dep-buttons">
+      <button id="dep-cancel">Cancel</button>
+      <button id="dep-go">Route &#x25BA;</button>
+    </div>
+  </div>
+</div>
 <div class="panel legend">
   <div class="title">True wind speed</div>
   <div class="bar" id="legend-bar"></div>
@@ -272,6 +331,7 @@
   <div id="hud-body"></div>
 </div>
 <div id="boatdot" hidden></div>
+<div id="pick-banner" hidden>⊕ Click open water — modal will reopen with position filled</div>
 
 <!-- CC-BY 4.0 attribution required by Open-Meteo free tier -->
 <div id="attribution">
