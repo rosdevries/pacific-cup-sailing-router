@@ -53,12 +53,16 @@ async function metadataLatestCycle() {
 async function loadCachedGrid(cycle) {
   if (mem && mem.cycle === cycle) return mem.grid;   // hot
   try {
-    const buf = await readFile(path.join(CACHE_DIR, `forecast-v3-${cycle}.json`), 'utf8');
+    const buf = await readFile(path.join(CACHE_DIR, `forecast-v4-${cycle}.json`), 'utf8');
     const grid = JSON.parse(buf);
     mem = { cycle, grid };
     return grid;
   } catch { return null; }
 }
+
+// Minimum useful decimal places per field — keeps routing accuracy while shrinking JSON ~4×.
+const ROUND_DP = { tws: 1, waveHeight: 2, wavePeriod: 1, curSpeed: 2, pressure: 1 };
+const DEFAULT_DP = 3;  // direction unit-vector components (x/y): 0.001 ≈ 0.06° accuracy
 
 export async function refreshCache(cycle) {
   const raw  = await fetchForecastGrid({ start: GRID_START, dest: DEST, step: 2.0 });
@@ -68,9 +72,18 @@ export async function refreshCache(cycle) {
     Object.entries(raw).map(([k, v]) => [k, v instanceof Float32Array ? Array.from(v) : v]),
   );
   grid.cycle = new Date(cycle * 1000).toISOString();
+
+  // Round numeric arrays to useful precision — eliminates Float32 noise, compresses much better.
+  for (const [k, v] of Object.entries(grid)) {
+    if (!Array.isArray(v) || typeof v[0] !== 'number') continue;
+    const dp = ROUND_DP[k] ?? DEFAULT_DP;
+    const m  = 10 ** dp;
+    grid[k]  = v.map(n => Math.round(n * m) / m);
+  }
+
   const payload = JSON.stringify(grid);
   await mkdir(CACHE_DIR, { recursive: true });
-  await writeFile(path.join(CACHE_DIR, `forecast-v3-${cycle}.json`), payload);
+  await writeFile(path.join(CACHE_DIR, `forecast-v4-${cycle}.json`), payload);
   await writeFile(path.join(CACHE_DIR, 'latest.json'), payload);
   mem = { cycle, grid };
   return grid;
@@ -88,12 +101,14 @@ async function getGrid() {
 // ---- Static file serving ----------------------------------------
 
 const MIME = {
-  '.html': 'text/html; charset=utf-8',
-  '.js':   'application/javascript',
-  '.css':  'text/css',
-  '.json': 'application/json',
-  '.png':  'image/png',
-  '.ico':  'image/x-icon',
+  '.html':        'text/html; charset=utf-8',
+  '.js':          'application/javascript',
+  '.css':         'text/css',
+  '.json':        'application/json',
+  '.webmanifest': 'application/manifest+json',
+  '.png':         'image/png',
+  '.svg':         'image/svg+xml',
+  '.ico':         'image/x-icon',
 };
 
 // Resolve a URL pathname to a filesystem path.

@@ -847,7 +847,9 @@ async function replan() {
   const seq = ++reqSeq, cyc = expectedCycle();
   if (CACHE && CACHE.cycle === cyc) {
     applyEnv(CACHE.env);
-    setStatus('◉ live · cached · GFS '+cycLabel(cyc)+' (no refetch)', 'live');
+    const cachedAgeH = Math.round((Date.now() - new Date(CACHE.env.cycle).getTime()) / 3600000);
+    const cachedAgeSuffix = cachedAgeH > 0 ? ` · ${cachedAgeH}h old` : '';
+    setStatus('◉ live · cached · GFS '+cycLabel(cyc)+cachedAgeSuffix, 'live');
     setupSlider(true); await compute(); return;
   }
   if (LIVE_OFF) {
@@ -864,7 +866,9 @@ async function replan() {
   if (seq !== reqSeq) return;
   if (env) {
     CACHE = { cycle: cyc, env }; LOAD_CYCLE = cyc; applyEnv(env);
-    setStatus('◉ live · GFS + marine · '+cycLabel(cyc), 'live'); setupSlider(true);
+    const ageH = Math.round((Date.now() - new Date(env.cycle).getTime()) / 3600000);
+    const ageSuffix = ageH > 0 ? ` · ${ageH}h old` : '';
+    setStatus('◉ live · GFS + marine · '+cycLabel(cyc)+ageSuffix, 'live'); setupSlider(true);
   } else if (hardFail) {
     if (SAMPLER) { setStatus('◉ live · last forecast (refetch failed)', 'live'); }
     else { FIELD = 'synthetic'; LIVE_OFF = true; setStatus('◉ demo · synthetic field (live unavailable)', 'demo'); setupSlider(false); }
@@ -1161,6 +1165,14 @@ function makeDraggable(el) {
   }, { passive: true });
 }
 makeDraggable(document.getElementById('telemetry'));
+
+// ---- Online / offline ----
+window.addEventListener('offline', () => {
+  setStatus('◉ offline · routing on cached forecast', 'warn');
+});
+window.addEventListener('online', () => {
+  replan();
+});
 
 // ---- Init ----
 setupBoats();

@@ -1,0 +1,23 @@
+{
+  "name": "Pacific Passage",
+  "short_name": "Pacific Passage",
+  "description": "Isochrone weather routing for Pac Cup and Transpac",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#0c2433",
+  "background_color": "#061019",
+  "icons": [
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
