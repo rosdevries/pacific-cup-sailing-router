@@ -47,7 +47,7 @@ async function main() {
   } catch { /* not cached yet, continue */ }
 
   console.log(`[prefetch] fetching cycle ${new Date(cycle * 1000).toISOString()} → ${CACHE_DIR}`);
-  const raw  = await fetchForecastGrid({ start: GRID_START, dest: DEST, step: 1.5 });
+  const raw  = await fetchForecastGrid({ start: GRID_START, dest: DEST, step: 2.0 });
   const grid = Object.fromEntries(
     Object.entries(raw).map(([k, v]) => [k, v instanceof Float32Array ? Array.from(v) : v]),
   );

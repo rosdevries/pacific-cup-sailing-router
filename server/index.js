@@ -61,7 +61,7 @@ async function loadCachedGrid(cycle) {
 }
 
 export async function refreshCache(cycle) {
-  const raw  = await fetchForecastGrid({ start: GRID_START, dest: DEST, step: 1.5 });
+  const raw  = await fetchForecastGrid({ start: GRID_START, dest: DEST, step: 2.0 });
   // Flatten Float32Arrays → plain arrays for JSON storage (typed arrays don't survive JSON.stringify).
   // Keep the plain-array version in mem so both cache paths return the same shape.
   const grid = Object.fromEntries(
