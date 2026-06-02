@@ -13,7 +13,7 @@ import { fetchForecastGrid } from '../src/forecast.js';
 const ROOT      = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CACHE_DIR = process.env.CACHE_DIR || path.join(ROOT, '.cache');
 
-const SF         = { lat: 37.60,   lon: -122.90   };
+const SF         = { lat: 37.8197, lon: -122.4786  }; // Pac Cup start line (Golden Gate)
 const SAN_PEDRO  = { lat: 33.6917, lon: -118.2917 };
 const DEST       = { lat: 21.4806, lon: -157.7725 };
 const GRID_START = { lat: SF.lat, lon: SAN_PEDRO.lon };

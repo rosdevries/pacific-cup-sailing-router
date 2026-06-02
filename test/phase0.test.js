@@ -39,7 +39,7 @@ try {
 
 const lhl = mask ? (a, b) => legHitsLand(mask, a, b) : () => false;
 
-const SF   = { lat: 37.60,   lon: -122.90   };
+const SF   = { lat: 37.8197, lon: -122.4786  }; // Golden Gate / Pac Cup start
 const DEST = { lat: 21.4806, lon: -157.7725 };
 
 // ============================================================

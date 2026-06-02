@@ -22,14 +22,18 @@ const [{ boats: BOATS, boatOrder: BOAT_ORDER }, ISLANDS] = await Promise.all([
 ]);
 
 // ---- Constants ----
-const SF         = { lat: 37.60,    lon: -122.90    };
+const SF         = { lat: 37.8197,  lon: -122.4786  }; // Pac Cup start line
 const SAN_PEDRO  = { lat: 33.6917,  lon: -118.2917  }; // Transpac start line
 
 const ROUTES = {
-  paccup:   { origin: SF,        dest: { lat: 21.4806, lon: -157.7725 }, destLabel: 'KANEOHE BAY',  destName: 'Kaneohe Bay',  resetLabel: 'Reset to San Francisco' },
-  transpac: { origin: SAN_PEDRO, dest: { lat: 21.245417, lon: -157.816694 }, destLabel: 'DIAMOND HEAD', destName: 'Diamond Head', resetLabel: 'Reset to San Pedro'     },
+  paccup:   { origin: SF,        dest: { lat: 21.4806, lon: -157.7725 },    destLabel: 'KANEOHE BAY',  destName: 'Kaneohe Bay',  resetLabel: 'Reset to San Francisco' },
+  transpac: { origin: SAN_PEDRO, dest: { lat: 21.245417, lon: -157.816694 },
+              // Black Point headland is land in GSHHG — route to open water 3 nm offshore instead
+              routeDest: { lat: 21.19, lon: -157.83 },
+              destLabel: 'DIAMOND HEAD', destName: 'Diamond Head', resetLabel: 'Reset to San Pedro' },
 };
-let DEST      = ROUTES.paccup.dest;
+let DEST       = ROUTES.paccup.dest;
+let ROUTE_DEST = ROUTES.paccup.routeDest ?? ROUTES.paccup.dest;
 let DEST_LABEL = ROUTES.paccup.destLabel;
 // Render a wider area than the land-mask coverage so Hawaii clears the left controls panel
 const BASE_RVIEW = { latMin: 14, latMax: 44.5, lonMin: -175, lonMax: -108 };
@@ -153,7 +157,7 @@ worker.onmessage = (e) => {
 function compute() {
   return new Promise(resolve => {
     resolveCompute = resolve;
-    worker.postMessage({ origin, dest: DEST, polar: POLAR, polarEff: POLAR_EFF, grid: GRID, startT: START_T });
+    worker.postMessage({ origin, dest: ROUTE_DEST, polar: POLAR, polarEff: POLAR_EFF, grid: GRID, startT: START_T });
   });
 }
 
@@ -771,7 +775,7 @@ document.getElementById('routerow').addEventListener('click', e => {
   activeRoute = btn.dataset.route;
   document.querySelectorAll('.routebtn').forEach(b => b.classList.toggle('active', b.dataset.route === activeRoute));
   const r = ROUTES[activeRoute];
-  DEST = r.dest; DEST_LABEL = r.destLabel; DEST_NAME = r.destName;
+  DEST = r.dest; ROUTE_DEST = r.routeDest ?? r.dest; DEST_LABEL = r.destLabel; DEST_NAME = r.destName;
   origin = r.origin; START_T = 0;
   document.getElementById('reset').textContent = r.resetLabel;
   resetView(); replan();
