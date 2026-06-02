@@ -11,7 +11,8 @@ const SF         = { lat: 37.60,    lon: -122.90    };
 const SAN_PEDRO  = { lat: 33.6917,  lon: -118.2917  }; // Transpac start line
 const DEST       = { lat: 21.4806,  lon: -157.7725  };
 // Render a wider area than the land-mask coverage so Hawaii clears the left controls panel
-const RVIEW = { latMin: 14, latMax: 44.5, lonMin: -175, lonMax: -108 };
+const BASE_RVIEW = { latMin: 14, latMax: 44.5, lonMin: -175, lonMax: -108 };
+const RVIEW = { ...BASE_RVIEW }; // mutated in-place by zoom/pan
 
 // Approximate Pacific coastline, Oregon → Cabo San Lucas, traced N→S.
 // Points east of RVIEW.lonMax are clamped to the right screen edge when drawn.
@@ -61,6 +62,7 @@ let SAMPLER = null, FIELD = 'synthetic', GRID = null;
 let DISP_T = 0, PINNED_T = 0, EPOCH0 = Math.floor(Date.now() / 1000), HORIZON_H = 192, MAXT = 384;
 let result = null, origin = SF;
 let CACHE = null, LOAD_CYCLE = null, LIVE_OFF = false, reqSeq = 0;
+let ZOOMED = false;
 let watchId = null, livePos = null, liveCog = null, liveSog = null, lastSolve = null, solving = false;
 
 // ---- Canvas ----
@@ -74,6 +76,27 @@ const unpx  = (x, y)    => ({ lat: RVIEW.latMax - y/H*(RVIEW.latMax - RVIEW.latM
                                lon: RVIEW.lonMin + x/W*(RVIEW.lonMax - RVIEW.lonMin) });
 const inChart = (lat, lon) => lat > RVIEW.latMin && lat < RVIEW.latMax && lon > RVIEW.lonMin && lon < RVIEW.lonMax;
 const isLand  = (lat, lon) => MASK ? maskLand(MASK, lat, lon) : false;
+
+// ---- Zoom / pan ----
+function _applyZoom(cx, cy, factor) {
+  const p = unpx(cx, cy);
+  const latSpan = Math.min(BASE_RVIEW.latMax - BASE_RVIEW.latMin, Math.max(3,  (RVIEW.latMax - RVIEW.latMin) / factor));
+  const lonSpan = Math.min(BASE_RVIEW.lonMax - BASE_RVIEW.lonMin, Math.max(7,  (RVIEW.lonMax - RVIEW.lonMin) / factor));
+  RVIEW.lonMin = p.lon - (cx / W) * lonSpan;  RVIEW.lonMax = RVIEW.lonMin + lonSpan;
+  RVIEW.latMax = p.lat + (cy / H) * latSpan;  RVIEW.latMin = RVIEW.latMax - latSpan;
+}
+function _applyPan(dx, dy) {
+  const dLon = -dx / W * (RVIEW.lonMax - RVIEW.lonMin);
+  const dLat =  dy / H * (RVIEW.latMax - RVIEW.latMin);
+  RVIEW.lonMin += dLon; RVIEW.lonMax += dLon;
+  RVIEW.latMin += dLat; RVIEW.latMax += dLat;
+}
+function _updateZoomBtn() {
+  document.getElementById('zoom-reset').style.display = ZOOMED ? 'block' : 'none';
+}
+function zoomAt(cx, cy, factor) { _applyZoom(cx, cy, factor); ZOOMED = true; _updateZoomBtn(); draw(); }
+function panBy(dx, dy)          { _applyPan(dx, dy);          ZOOMED = true; _updateZoomBtn(); draw(); }
+function resetView()            { Object.assign(RVIEW, BASE_RVIEW); ZOOMED = false; _updateZoomBtn(); draw(); }
 
 // ---- Worker ----
 const worker = new Worker('/worker.js', { type: 'module' });
@@ -409,9 +432,9 @@ const cursorEl = document.getElementById('cursor'), routedot = document.getEleme
 function restoreDispT() {
   if (FIELD === 'live' && DISP_T !== PINNED_T) { DISP_T = PINNED_T; updateTimeLabel(); draw(); }
 }
-cv.addEventListener('mousemove', ev => {
-  const near = document.getElementById('t-track').checked ? nearestOnTrack(ev.clientX, ev.clientY) : null;
-  cursorEl.style.display = 'block'; cursorEl.style.left = (ev.clientX+14)+'px'; cursorEl.style.top = (ev.clientY+14)+'px';
+function showTooltip(mx, my) {
+  const near = document.getElementById('t-track').checked ? nearestOnTrack(mx, my) : null;
+  cursorEl.style.display = 'block'; cursorEl.style.left = (mx+14)+'px'; cursorEl.style.top = (my+14)+'px';
   if (near && near.d < 14) {
     if (FIELD === 'live') {
       const snapT = Math.max(0, Math.min(MAXT, Math.round(near.t)));
@@ -425,26 +448,99 @@ cv.addEventListener('mousemove', ev => {
       + `<span class="lbl">sail</span> ${sailFor(twa, e.tws, ASYM)}<br>`
       + `<span class="lbl">ETA</span> +${fmtDur(near.t)}`;
   } else {
-    restoreDispT();
-    routedot.style.display = 'none';
-    const p = unpx(ev.clientX, ev.clientY), e = getEnv(p.lat, p.lon, DISP_T);
+    restoreDispT(); routedot.style.display = 'none';
+    const p = unpx(mx, my), e = getEnv(p.lat, p.lon, DISP_T);
     cursorEl.innerHTML = `<span class="lbl">pos </span>${p.lat.toFixed(1)}°N ${Math.abs(p.lon).toFixed(1)}°W<br>`
       + `<span class="lbl">wind</span> ${Math.round(e.tws)} kt from ${Math.round(e.twd)}°<br>`
       + `<span class="lbl">sea </span> Hs ${e.waveHeight.toFixed(1)} m @ ${e.wavePeriod.toFixed(0)} s`;
   }
+}
+
+// Mouse — pan + tooltip
+let panStart = null, panMoved = false;
+cv.addEventListener('mousedown', ev => {
+  if (ev.button !== 0) return;
+  panStart = { x: ev.clientX, y: ev.clientY }; panMoved = false;
+  cv.style.cursor = 'grabbing';
 });
+cv.addEventListener('mousemove', ev => {
+  if (panStart) {
+    const dx = ev.clientX - panStart.x, dy = ev.clientY - panStart.y;
+    if (!panMoved && Math.hypot(dx, dy) > 4) panMoved = true;
+    if (panMoved) { panBy(dx, dy); panStart = { x: ev.clientX, y: ev.clientY }; return; }
+  }
+  showTooltip(ev.clientX, ev.clientY);
+});
+cv.addEventListener('mouseup',   () => { panStart = null; cv.style.cursor = ''; });
 cv.addEventListener('mouseleave', () => {
+  panStart = null; cv.style.cursor = '';
   cursorEl.style.display = 'none'; routedot.style.display = 'none'; restoreDispT();
 });
 cv.addEventListener('click', ev => {
+  if (panMoved) { panMoved = false; return; }
   const p = unpx(ev.clientX, ev.clientY);
   if (distNm(p, DEST) < 60) return;
   origin = { lat: +p.lat.toFixed(2), lon: +p.lon.toFixed(2) }; replan();
 });
+cv.addEventListener('dblclick', () => resetView());
+cv.addEventListener('wheel', ev => {
+  ev.preventDefault();
+  zoomAt(ev.clientX, ev.clientY, ev.deltaY < 0 ? 1.25 : 1 / 1.25);
+}, { passive: false });
+
+// Touch — pinch-to-zoom + pan + tap-to-reroute + double-tap-to-reset
+let touchStart = null, lastTap = 0, pinchDist0 = null;
+cv.addEventListener('touchstart', ev => {
+  ev.preventDefault();
+  const t = ev.touches; panMoved = false;
+  if (t.length === 1) {
+    touchStart = panStart = { x: t[0].clientX, y: t[0].clientY };
+  } else if (t.length === 2) {
+    pinchDist0 = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY);
+    panStart = { x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 };
+    touchStart = null;
+  }
+}, { passive: false });
+cv.addEventListener('touchmove', ev => {
+  ev.preventDefault();
+  const t = ev.touches;
+  if (t.length === 1 && panStart) {
+    const dx = t[0].clientX - panStart.x, dy = t[0].clientY - panStart.y;
+    if (Math.hypot(dx, dy) > 4) panMoved = true;
+    panBy(dx, dy); panStart = { x: t[0].clientX, y: t[0].clientY };
+  } else if (t.length === 2 && panStart) {
+    const mx = (t[0].clientX + t[1].clientX) / 2, my = (t[0].clientY + t[1].clientY) / 2;
+    const dist = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY);
+    _applyPan(mx - panStart.x, my - panStart.y);
+    if (pinchDist0) _applyZoom(mx, my, dist / pinchDist0);
+    pinchDist0 = dist; panStart = { x: mx, y: my };
+    ZOOMED = true; _updateZoomBtn(); draw();
+    panMoved = true;
+  }
+}, { passive: false });
+cv.addEventListener('touchend', ev => {
+  ev.preventDefault();
+  if (ev.touches.length === 0) {
+    if (!panMoved && touchStart) {
+      const now = Date.now();
+      if (now - lastTap < 300) { resetView(); lastTap = 0; }
+      else {
+        lastTap = now;
+        const p = unpx(touchStart.x, touchStart.y);
+        if (distNm(p, DEST) >= 60) { origin = { lat: +p.lat.toFixed(2), lon: +p.lon.toFixed(2) }; replan(); }
+      }
+    }
+    panStart = touchStart = null; pinchDist0 = null; panMoved = false;
+  } else if (ev.touches.length === 1) {
+    panStart = { x: ev.touches[0].clientX, y: ev.touches[0].clientY };
+    pinchDist0 = null;
+  }
+}, { passive: false });
 
 // ---- Controls wiring ----
 document.querySelectorAll('#controls input').forEach(c => c.addEventListener('change', draw));
-document.getElementById('reset').addEventListener('click', () => { origin = SF; replan(); });
+document.getElementById('reset').addEventListener('click', () => { origin = SF; resetView(); replan(); });
+document.getElementById('zoom-reset').addEventListener('click', resetView);
 document.getElementById('legend-bar').style.background =
   `linear-gradient(90deg,${WIND_STOPS.map(s => windColor(s[0])).join(',')})`;
 window.addEventListener('resize', resize);
