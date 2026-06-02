@@ -28,7 +28,7 @@ print("Kaneohe Bay  (want SEA  0):", at(21.4806,-157.7725))
 print("Honolulu     (want LAND255):", at(21.305,-157.858))
 print("mid-Pacific  (want SEA  0):", at(28,-145))
 print("Sacramento   (want LAND255):", at(38.58,-121.49))
-print("SF start     (want SEA  0):", at(37.8197,-122.4786))   # Golden Gate
+print("SF start     (want SEA  0):", at(37.80,-122.60))        # 5 nm WSW of Golden Gate
 print("Diamond Head routeDest (want SEA 0):", at(21.19,-157.83))  # 3 nm S of Black Point
 print("Big Island   (want LAND255):", at(19.6,-155.5))
 img.save("landmask.png")

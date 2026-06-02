@@ -22,7 +22,7 @@ const [{ boats: BOATS, boatOrder: BOAT_ORDER }, ISLANDS] = await Promise.all([
 ]);
 
 // ---- Constants ----
-const SF         = { lat: 37.8197,  lon: -122.4786  }; // Pac Cup start line
+const SF         = { lat: 37.80,    lon: -122.60    }; // Pac Cup start — open Pacific, 5 nm WSW of Golden Gate
 const SAN_PEDRO  = { lat: 33.6917,  lon: -118.2917  }; // Transpac start line
 
 const ROUTES = {

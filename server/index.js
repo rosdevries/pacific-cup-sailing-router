@@ -14,7 +14,7 @@ const STATIC_DIR = process.env.STATIC_DIR || path.join(ROOT, 'public');
 
 console.log('[server] starting — PORT:', PORT, 'CACHE_DIR:', CACHE_DIR, 'ROOT:', ROOT);
 
-const SF         = { lat: 37.8197, lon: -122.4786  }; // Pac Cup start line (Golden Gate)
+const SF         = { lat: 37.80,   lon: -122.60    }; // Pac Cup start — open Pacific, 5 nm WSW of Golden Gate
 const SAN_PEDRO  = { lat: 33.6917, lon: -118.2917 };
 const DEST       = { lat: 21.4806, lon: -157.7725 };
 // Grid start uses SF's latitude with San Pedro's (more easterly) longitude so the
