@@ -308,12 +308,11 @@ function buildIsoCache() {
   const CORR = 250;
   const coarse = tr.filter((_, i) => i % 5 === 0);
   const inCorridor = p => !coarse.length || coarse.some(t => distNm(p, t) < CORR);
-  // Arc filter: keep only points within ±90° of the great-circle bearing to the destination.
-  // Using the first-step heading here breaks for arcing passages (e.g. Transpac) where the
-  // initial step direction diverges from the overall route, causing the corridor to miss the
-  // second half of the track.
+  // Arc filter: keep only points within ±45° of the great-circle bearing to the destination.
+  // Reference is the stable great-circle bearing (not the first-step heading, which breaks for
+  // arcing passages like Transpac where initial coastal heading diverges from the overall route).
   const optHdg = bearing(origin, DEST);
-  const inArc = p => Math.abs(angDiff(bearing(origin, p), optHdg)) <= 90;
+  const inArc = p => Math.abs(angDiff(bearing(origin, p), optHdg)) <= 45;
   _isoCache = result.isochrones.map((front, i) => {
     if (i < 2) return null; // skip first 6 h — too close to origin
     if (front.length < 2) return null;
