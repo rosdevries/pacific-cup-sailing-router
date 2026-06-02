@@ -238,7 +238,7 @@ function buildIsoCache() {
   _isoCache = null;
   if (!result || !result.isochrones) return;
   const tr = result.track;
-  const CORR = 500; // nm corridor around the optimal track
+  const CORR = 250; // nm corridor around the optimal track
   const coarse = tr.filter((_, i) => i % 5 === 0); // thin track for faster proximity check
   const inCorridor = p => !coarse.length || coarse.some(t => distNm(p, t) < CORR);
   _isoCache = result.isochrones.map((front, i) => {
