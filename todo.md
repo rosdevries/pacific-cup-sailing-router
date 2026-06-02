@@ -81,6 +81,42 @@ All ported into `public/app.js`:
 
 ---
 
+## Phase 6 — Marketing page at pacific-passage.com
+
+App stays at `app.pacific-passage.com`; static marketing page serves the apex.
+
+### Phase 6.1 — Repo (done ✅)
+- [x] `site/index.html` — self-contained landing page (inline CSS + SVG compass)
+- [x] `site/robots.txt` + `site/sitemap.xml` + `site/_redirects`
+- [x] `scripts/gen-og-image.mjs` — pngjs pixel-art social card generator
+- [x] Favicons copied to `site/` from brand assets
+- [x] `site/og-image.png` — generated (run `node scripts/gen-og-image.mjs` to regenerate)
+
+### Phase 6.2 — Cloudflare Pages project
+- [ ] Dashboard → Workers & Pages → Create → Pages
+- [ ] Connect GitHub repo; Framework preset = None; Build command = (empty); Output dir = `site`
+- [ ] Deploy; verify `*.pages.dev` preview (page, favicon, OG image)
+
+### Phase 6.3 — Free the apex from Tunnel, point at Pages
+- [ ] Zero Trust → Tunnels → (your tunnel) → Public Hostnames → **delete** `pacific-passage.com`
+      (and `www` if present); leave `app.pacific-passage.com` → Railway intact
+- [ ] Pages → Custom domains → add `pacific-passage.com` AND `www.pacific-passage.com`
+      (Cloudflare creates DNS + TLS automatically)
+- [ ] Add Redirect Rule: `www.pacific-passage.com/*` → `https://pacific-passage.com/$1` (301)
+
+### Phase 6.4 — Verify
+- [ ] `https://pacific-passage.com/` → marketing page; `https://www…` 301s to apex
+- [ ] `https://app.pacific-passage.com/` → router app (unchanged)
+- [ ] `https://pacific-passage.com/route` → 301 to app
+- [ ] `/favicon.svg`, `/og-image.png`, `/robots.txt`, `/sitemap.xml` all 200
+
+### Phase 6.5 — SEO
+- [ ] Google Search Console: add `pacific-passage.com` property, submit `/sitemap.xml`
+- [ ] Prime social caches: Facebook Sharing Debugger + X Card Validator on apex URL
+- [ ] Confirm `robots.txt` allows crawling
+
+---
+
 ## Stretch (post-launch)
 
 - [ ] Split polar efficiency into upwind vs downwind components

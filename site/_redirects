@@ -1,0 +1,2 @@
+/route/*   https://app.pacific-passage.com/:splat   301
+/route     https://app.pacific-passage.com/         301
