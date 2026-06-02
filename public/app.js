@@ -426,6 +426,38 @@ function drawIsobars() {
       ctx.fillText(`${iso}`, (s[0]+s[2])/2, (s[1]+s[3])/2);
     }
   }
+  // Label high (H) and low (L) pressure centres — 8-neighbour local extrema
+  const nR = lats.length, nC = lons.length;
+  ctx.setLineDash([]);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let r = 1; r < nR - 1; r++) {
+    for (let c = 1; c < nC - 1; c++) {
+      const v = vals[r][c];
+      let isMax = true, isMin = true;
+      for (let dr = -1; dr <= 1 && (isMax || isMin); dr++)
+        for (let dc = -1; dc <= 1 && (isMax || isMin); dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const n = vals[r+dr][c+dc];
+          if (n >= v) isMax = false;
+          if (n <= v) isMin = false;
+        }
+      if (!isMax && !isMin) continue;
+      const [x, y] = px(lats[r], lons[c]);
+      const p = Math.round(v);
+      if (isMax) {
+        ctx.font = "bold 18px 'Saira'"; ctx.fillStyle = 'rgba(255,80,80,0.95)';
+        ctx.fillText('H', x, y);
+        ctx.font = "10px 'IBM Plex Mono'"; ctx.fillStyle = 'rgba(255,150,150,0.85)';
+        ctx.fillText(`${p}`, x, y + 14);
+      } else {
+        ctx.font = "bold 18px 'Saira'"; ctx.fillStyle = 'rgba(80,140,255,0.95)';
+        ctx.fillText('L', x, y);
+        ctx.font = "10px 'IBM Plex Mono'"; ctx.fillStyle = 'rgba(150,190,255,0.85)';
+        ctx.fillText(`${p}`, x, y + 14);
+      }
+    }
+  }
   ctx.restore();
 }
 function drawSwellDir() {
