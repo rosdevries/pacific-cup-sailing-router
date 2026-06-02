@@ -380,6 +380,84 @@
       height: 1px;
       background: var(--hairline);
     }
+
+    /* ── Beta tag ── */
+    .beta-tag {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 8.5px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--coral);
+      border: 1px solid rgba(255, 107, 94, 0.5);
+      border-radius: 2px;
+      padding: 2px 5px;
+      vertical-align: middle;
+      margin-left: 6px;
+    }
+
+    /* ── Offshore / connectivity section ── */
+    .connectivity { padding: 64px 0; border-top: 1px solid var(--hairline); }
+
+    .conn-rows {
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--hairline);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .conn-row {
+      display: grid;
+      grid-template-columns: 36px 1fr auto;
+      gap: 20px;
+      align-items: start;
+      padding: 24px;
+      background: var(--deep);
+      border-bottom: 1px solid var(--hairline);
+      transition: background 0.18s;
+    }
+    .conn-row:last-child { border-bottom: none; }
+    .conn-row:hover { background: var(--panel); }
+
+    .conn-icon { font-size: 19px; line-height: 1; padding-top: 2px; }
+
+    .conn-body h4 {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink);
+      margin-bottom: 6px;
+    }
+    .conn-body p { font-size: 13px; color: var(--muted); line-height: 1.55; }
+
+    .conn-pill {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 2px;
+      white-space: nowrap;
+      align-self: start;
+      margin-top: 3px;
+    }
+    .conn-pill.ok      { background: rgba(95,227,154,0.10); color: #5fe39a; border: 1px solid rgba(95,227,154,0.28); }
+    .conn-pill.planned { background: rgba(255,177,59,0.08); color: var(--amber); border: 1px solid rgba(255,177,59,0.28); }
+
+    .conn-note {
+      margin-top: 20px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10.5px;
+      line-height: 1.65;
+      color: var(--muted);
+    }
+    .conn-note strong { color: var(--coral); font-weight: 500; }
+
+    @media (max-width: 560px) {
+      .conn-row { grid-template-columns: 28px 1fr; }
+      .conn-pill { grid-column: 2; }
+    }
   </style>
 </head>
 <body>
@@ -499,13 +577,23 @@
       </div>
       <div class="feat">
         <div class="feat-icon">📍</div>
-        <h3>Route from Your Position</h3>
+        <h3>Route from Your Position <span class="beta-tag">beta</span></h3>
         <p>Use live GPS tracking to route from wherever you are right now. Optimal heading updates as the forecast evolves.</p>
       </div>
       <div class="feat">
         <div class="feat-icon">⚡</div>
         <h3>Free &amp; Open</h3>
         <p>No account. No subscription. Runs in your browser using open weather data. A hobby project, built for sailors.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">📴</div>
+        <h3>Works Offline <span class="beta-tag">beta</span></h3>
+        <p>Once you've loaded a forecast, routing and live GPS tracking run locally with zero signal. Grab the grid in a coverage window — route until the next one.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">🛰️</div>
+        <h3>Light on Data <span class="beta-tag">beta</span></h3>
+        <p>One download per 6-hour GFS cycle — under 2 MB. No streaming map tiles; the chart is self-contained. GPS position uses no data at all.</p>
       </div>
     </div>
   </div>
@@ -533,6 +621,44 @@
         <p>Scrub the forecast timeline. Check gybe points, wind angles, and wave heights along the optimal track.</p>
       </div>
     </div>
+  </div>
+</section>
+
+<!-- Offshore connectivity -->
+<section class="connectivity">
+  <div class="container">
+    <p class="section-label">Using it offshore <span class="beta-tag">beta</span></p>
+    <div class="conn-rows">
+      <div class="conn-row">
+        <div class="conn-icon">🛰️</div>
+        <div class="conn-body">
+          <h4>Starlink Roam</h4>
+          <p>The forecast is a single download per 6-hour GFS cycle — under 2 MB, no map tiles, no polling. Coverage on Pacific routes is broad but not guaranteed continuous; open-ocean gaps still occur. Works well as a primary offshore tool, but plan for dropouts.</p>
+        </div>
+        <div class="conn-pill ok">Works well</div>
+      </div>
+      <div class="conn-row">
+        <div class="conn-icon">📴</div>
+        <div class="conn-body">
+          <h4>Intermittent or no signal</h4>
+          <p>Pull the forecast in any coverage window. Between windows, routing, scrubbing the timeline, and live GPS heading all run locally on the cached grid — no connection required. The app shows how old the forecast is so you can judge when it's worth refreshing.</p>
+        </div>
+        <div class="conn-pill ok">Works offline</div>
+      </div>
+      <div class="conn-row">
+        <div class="conn-icon">📻</div>
+        <div class="conn-body">
+          <h4>Iridium GO! / narrowband sat</h4>
+          <p>A multi-megabyte JSON grid is not viable over Iridium or similar narrowband links. A server-side route mode (server solves, returns a few-KB polyline) is on the roadmap for a future version.</p>
+        </div>
+        <div class="conn-pill planned">Planned</div>
+      </div>
+    </div>
+    <p class="conn-note">
+      Underway use is in early beta — this is a hobby project, not a commercial product.
+      <strong>Not for navigation.</strong> Always cross-check with official NOAA forecasts, paper charts,
+      and your standard offshore nav tools before and during any passage.
+    </p>
   </div>
 </section>
 
