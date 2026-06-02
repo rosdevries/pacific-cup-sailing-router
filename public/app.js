@@ -133,6 +133,14 @@ function zoomAt(cx, cy, factor) { _applyZoom(cx, cy, factor); ZOOMED = true; _up
 function panBy(dx, dy)          { _applyPan(dx, dy);          ZOOMED = true; _updateZoomBtn(); scheduleDraw(); }
 function resetView()            { Object.assign(RVIEW, BASE_RVIEW); ZOOMED = false; _updateZoomBtn(); scheduleDraw(); }
 
+// ---- Loading overlay ----
+const _loaderEl = document.getElementById('loader');
+function hideLoader() {
+  if (!_loaderEl || _loaderEl.classList.contains('hidden')) return;
+  _loaderEl.classList.add('hidden');
+  _loaderEl.addEventListener('transitionend', () => _loaderEl.remove(), { once: true });
+}
+
 // ---- Worker ----
 const worker = new Worker('/worker.js', { type: 'module' });
 let resolveCompute = null;
@@ -147,10 +155,12 @@ worker.onmessage = (e) => {
     }
     buildIsoCache();
     scheduleDraw();
+    hideLoader();
     telemetry();
     if (resolveCompute) { resolveCompute(); resolveCompute = null; }
   } else if (e.data.type === 'error') {
     console.error('[worker]', e.data.message);
+    hideLoader();
     if (resolveCompute) { resolveCompute(); resolveCompute = null; }
   }
 };
