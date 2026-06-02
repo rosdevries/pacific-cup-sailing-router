@@ -23,17 +23,21 @@ export function buildGrid(b, step) {
 }
 
 export async function omFetch(base, grid, params, signal) {
-  // Build the URL manually — URLSearchParams encodes commas as %2C, bloating the
-  // lat/lon lists from ~7.6KB to ~9.8KB and triggering HTTP 414 on Open-Meteo.
-  const fixed = [
-    `latitude=${grid.lats.join(',')}`,
-    `longitude=${grid.lons.join(',')}`,
-    'timeformat=unixtime',
-    'cell_selection=sea',
-    ...Object.entries(params).map(([k, v]) => `${k}=${encodeURIComponent(v)}`),
-  ];
-  const url = `${base}?${fixed.join('&')}`;
-  const r = await fetch(url, { signal });
+  // POST avoids HTTP 414 — the lat/lon arrays for a multi-point grid exceed
+  // Open-Meteo's URL length limit when sent as a GET query string.
+  const body = {
+    latitude: grid.lats,
+    longitude: grid.lons,
+    timeformat: 'unixtime',
+    cell_selection: 'sea',
+    ...params,
+  };
+  const r = await fetch(base, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal,
+  });
   if (!r.ok) throw new Error(`${base} HTTP ${r.status}`);
   const jx = await r.json();
   return Array.isArray(jx) ? jx : [jx];
