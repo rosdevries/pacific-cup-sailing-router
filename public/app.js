@@ -878,43 +878,22 @@ async function replan() {
 
 // ---- Boat selector + ORR cert upload ----
 if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-let _boatId = 'sc40';
 function boatSub(id) { return (BOATS[id].name + ' · ' + BOATS[id].meta).toUpperCase(); }
-
 function populateBoatSelect() {
-  const opts = document.getElementById('boat-opts'); opts.innerHTML = '';
-  BOAT_ORDER.forEach(id => {
-    const div = document.createElement('div');
-    div.className = 'bs-opt'; div.dataset.id = id; div.textContent = BOATS[id].name;
-    div.addEventListener('mousedown', e => { e.preventDefault(); setBoat(id); closeBs(); });
-    opts.appendChild(div);
-  });
+  const sel = document.getElementById('boat'); sel.innerHTML = '';
+  BOAT_ORDER.forEach(id => { const o = document.createElement('option'); o.value = id; o.textContent = BOATS[id].name; sel.appendChild(o); });
 }
-function openBs()  { document.getElementById('boat').classList.add('open');    document.getElementById('boat-opts').hidden = false; }
-function closeBs() { document.getElementById('boat').classList.remove('open'); document.getElementById('boat-opts').hidden = true; }
 function setBoat(id) {
   if (!BOATS[id]) return;
   POLAR = BOATS[id].polar;
   ASYM = BOATS[id].asymSpinnaker ?? false;
-  _boatId = id;
-  document.getElementById('boat-val').textContent = BOATS[id].name;
-  document.querySelectorAll('#boat-opts .bs-opt').forEach(el => el.classList.toggle('sel', el.dataset.id === id));
+  document.getElementById('boat').value = id;
   document.getElementById('boatsub').textContent = boatSub(id); compute();
 }
 function setupBoats() {
-  populateBoatSelect();
-  // Initialise display without triggering compute (replan() will do it)
-  _boatId = 'sc40';
-  document.getElementById('boat-val').textContent = BOATS['sc40'].name;
-  document.querySelectorAll('#boat-opts .bs-opt').forEach(el => el.classList.toggle('sel', el.dataset.id === 'sc40'));
+  populateBoatSelect(); document.getElementById('boat').value = 'sc40';
   document.getElementById('boatsub').textContent = boatSub('sc40');
-  const el = document.getElementById('boat');
-  el.addEventListener('click', () => el.classList.contains('open') ? closeBs() : openBs());
-  el.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.classList.contains('open') ? closeBs() : openBs(); }
-    if (e.key === 'Escape') closeBs();
-  });
-  document.addEventListener('click', e => { if (!el.contains(e.target)) closeBs(); });
+  document.getElementById('boat').addEventListener('change', e => setBoat(e.target.value));
   document.getElementById('cert').addEventListener('change', e => { const f = e.target.files[0]; if (f) loadCert(f); e.target.value = ''; });
 }
 async function loadCert(file) {
@@ -979,7 +958,7 @@ function posRows(lat, lon) {
   return geoRow('Latitude',dm(lat,'N','S'))+geoRow('Longitude',dm(lon,'E','W'))
     +geoRow('Decimal',lat.toFixed(4)+', '+lon.toFixed(4))+geoRow('Destination',DEST_NAME);
 }
-function boatName() { return BOATS[_boatId].name; }
+function boatName() { return BOATS[document.getElementById('boat').value].name; }
 function routeFromLocation() {
   if (!navigator.geolocation) { geoModal('<div class="geo-note err">This browser can\'t share a location.</div>'); return; }
   geoModal('<div class="geo-note wait">◌ Requesting your location… allow access when your browser asks.</div>');

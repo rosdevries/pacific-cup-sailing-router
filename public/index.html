@@ -136,23 +136,9 @@
   #controls .status { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.04em; margin: 8px 0 2px; }
   .status.live { color: var(--green); } .status.demo { color: var(--amber); } .status.load { color: var(--grid-text); } .status.warn { color: var(--coral); }
   #controls .boatrow { display: flex; gap: 6px; margin: 7px 0 3px; }
-  /* custom boat dropdown — replaces native <select> so the popup stays dark */
-  .boat-sel { flex: 1; min-width: 0; position: relative; background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.14); border-radius: 5px; cursor: pointer;
-    outline: none; user-select: none; }
-  .boat-sel:focus, .boat-sel.open { border-color: rgba(63,205,224,0.55); }
-  #boat-val { display: block; padding: 5px 20px 5px 6px; font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .boat-sel-arrow { position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
-    font-size: 10px; color: var(--grid-text); pointer-events: none; }
-  .boat-opts { position: absolute; top: calc(100% + 3px); left: -1px; right: -1px;
-    background: var(--deep); border: 1px solid rgba(63,205,224,0.28); border-radius: 5px;
-    z-index: 30; box-shadow: 0 8px 24px rgba(0,0,0,0.5); overflow: hidden; }
-  .boat-opts[hidden] { display: none; }
-  .bs-opt { padding: 7px 10px; font-family: 'IBM Plex Mono', monospace; font-size: 11px;
-    color: var(--ink); cursor: pointer; transition: background 0.1s; }
-  .bs-opt:hover { background: rgba(63,205,224,0.10); }
-  .bs-opt.sel { color: var(--cyan); }
+  #controls select#boat { flex: 1; min-width: 0; background: rgba(255,255,255,0.05); color: var(--ink);
+    border: 1px solid rgba(255,255,255,0.14); border-radius: 5px; padding: 5px 6px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; color-scheme: dark; }
   #controls .upload { white-space: nowrap; cursor: pointer; background: rgba(63,205,224,0.10); color: var(--cyan);
     border: 1px solid rgba(63,205,224,0.35); border-radius: 5px; padding: 5px 9px; display: flex; align-items: center;
     font-family: 'IBM Plex Mono', monospace; font-size: 11px; }
@@ -324,11 +310,7 @@
   <div class="sub" id="boatsub">SANTA CRUZ 40 · ORR US43259</div>
   <div class="status" id="status">◌ initializing…</div>
   <div class="boatrow">
-    <div id="boat" class="boat-sel" tabindex="0" role="combobox" aria-haspopup="listbox" title="Boat polar">
-      <span id="boat-val"></span>
-      <span class="boat-sel-arrow" aria-hidden="true">▾</span>
-      <div class="boat-opts" id="boat-opts" role="listbox" hidden></div>
-    </div>
+    <select id="boat" title="Boat polar"></select>
     <label class="upload" for="cert">＋ ORR cert</label>
     <input type="file" id="cert" accept="application/pdf" hidden>
   </div>

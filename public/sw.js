@@ -1,6 +1,6 @@
 // Service worker — offline-first PWA for Pacific Passage
 // Bump SHELL_V on each deploy that changes the app shell.
-const SHELL_V = '1';
+const SHELL_V = '2';
 const SHELL   = `shell-${SHELL_V}`;
 const FC_C    = 'forecast-v1';
 
