@@ -658,6 +658,9 @@ function restoreDispT() {
 function showTooltip(mx, my) {
   const near = document.getElementById('t-track').checked ? nearestOnTrack(mx, my) : null;
   cursorEl.style.display = 'block'; cursorEl.style.left = (mx+14)+'px'; cursorEl.style.top = (my+14)+'px';
+  const r = cursorEl.getBoundingClientRect();
+  if (r.right  > window.innerWidth)  cursorEl.style.left = (mx - r.width  - 10) + 'px';
+  if (r.bottom > window.innerHeight) cursorEl.style.top  = (my - r.height - 10) + 'px';
   if (near && near.d < 14) {
     if (FIELD === 'live') {
       const snapT = Math.max(0, Math.min(MAXT, Math.round(near.t)));
@@ -721,12 +724,29 @@ cv.addEventListener('wheel', ev => {
 }, { passive: false });
 
 // Touch — pinch-to-zoom + pan + tap-to-reroute + double-tap-to-reset
+let touchScrub = false, scrubHideTimer = null;
+function endScrub() {
+  touchScrub = false;
+  clearTimeout(scrubHideTimer);
+  scrubHideTimer = setTimeout(() => {
+    cursorEl.style.display = 'none'; routedot.style.display = 'none';
+    DISP_T = PINNED_T; scheduleDraw();
+  }, 1800);
+}
 let touchStart = null, lastTap = 0, pinchDist0 = null;
 cv.addEventListener('touchstart', ev => {
   ev.preventDefault();
   const t = ev.touches; panMoved = false;
   if (t.length === 1) {
-    touchStart = panStart = { x: t[0].clientX, y: t[0].clientY };
+    const mx = t[0].clientX, my = t[0].clientY;
+    clearTimeout(scrubHideTimer);
+    if (document.getElementById('t-track').checked) {
+      const near = nearestOnTrack(mx, my);
+      if (near && near.d < 30) {
+        touchScrub = true; panMoved = false; showTooltip(mx, my); return;
+      }
+    }
+    touchStart = panStart = { x: mx, y: my };
   } else if (t.length === 2) {
     pinchDist0 = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY);
     panStart = { x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 };
@@ -736,6 +756,7 @@ cv.addEventListener('touchstart', ev => {
 cv.addEventListener('touchmove', ev => {
   ev.preventDefault();
   const t = ev.touches;
+  if (touchScrub && t.length === 1) { showTooltip(t[0].clientX, t[0].clientY); return; }
   if (t.length === 1 && panStart) {
     const dx = t[0].clientX - panStart.x, dy = t[0].clientY - panStart.y;
     if (Math.hypot(dx, dy) > 4) panMoved = true;
@@ -753,11 +774,16 @@ cv.addEventListener('touchmove', ev => {
 cv.addEventListener('touchend', ev => {
   ev.preventDefault();
   if (ev.touches.length === 0) {
+    if (touchScrub) { endScrub(); panStart = touchStart = null; pinchDist0 = null; panMoved = false; return; }
     if (!panMoved && touchStart) {
       const now = Date.now();
       if (now - lastTap < 300) { resetView(); lastTap = 0; }
       else {
         lastTap = now;
+        if (document.getElementById('t-track').checked) {
+          const near = nearestOnTrack(touchStart.x, touchStart.y);
+          if (near && near.d < 30) { showTooltip(touchStart.x, touchStart.y); endScrub(); panStart = touchStart = null; pinchDist0 = null; panMoved = false; return; }
+        }
         const p = unpx(touchStart.x, touchStart.y);
         if (pickingForModal) {
           document.getElementById('dep-lat').value = p.lat.toFixed(2);
