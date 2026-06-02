@@ -61,6 +61,7 @@ let MASK = null, LANDCANVAS = null;
 let SAMPLER = null, FIELD = 'synthetic', GRID = null;
 let DISP_T = 0, PINNED_T = 0, EPOCH0 = Math.floor(Date.now() / 1000), HORIZON_H = 192, MAXT = 384;
 let result = null, origin = SF;
+let _isoCache = null; // pre-processed isochrone draw data, rebuilt on each new result
 let CACHE = null, LOAD_CYCLE = null, LIVE_OFF = false, reqSeq = 0;
 let ZOOMED = false;
 let watchId = null, livePos = null, liveCog = null, liveSog = null, lastSolve = null, solving = false;
@@ -104,6 +105,7 @@ let resolveCompute = null;
 worker.onmessage = (e) => {
   if (e.data.type === 'result') {
     result = e.data;
+    buildIsoCache();
     scheduleDraw();
     telemetry();
     if (resolveCompute) { resolveCompute(); resolveCompute = null; }
@@ -232,11 +234,25 @@ function nearLand(lat, lon) {
   return isLand(lat,lon)||isLand(lat+d,lon)||isLand(lat-d,lon)||isLand(lat,lon+d)||isLand(lat,lon-d)
     ||isLand(lat+d,lon+d)||isLand(lat-d,lon-d)||isLand(lat+d,lon-d)||isLand(lat-d,lon+d);
 }
-function drawIsochrones(start) {
-  if (!result) return;
+function buildIsoCache() {
+  _isoCache = null;
+  if (!result || !result.isochrones) return;
+  const tr = result.track;
+  const CORR = 500; // nm corridor around the optimal track
+  const coarse = tr.filter((_, i) => i % 5 === 0); // thin track for faster proximity check
+  const inCorridor = p => !coarse.length || coarse.some(t => distNm(p, t) < CORR);
+  _isoCache = result.isochrones.map((front, i) => {
+    if (front.length < 2) return null;
+    const pts = front
+      .filter(inCorridor)
+      .sort((a, b) => bearing(origin, a) - bearing(origin, b));
+    return pts.length >= 2 ? { pts, major: i % 8 === 0 } : null;
+  }).filter(Boolean);
+}
+function drawIsochrones() {
+  if (!_isoCache || !_isoCache.length) return;
   ctx.save();
-  // Clip to ocean: full-canvas rect minus the California coast polygon.
-  // evenodd rule: 1 crossing (inside rect only) = draw; 2 crossings (inside both) = skip.
+  // Clip the California coast out of the isochrone layer (evenodd rule).
   ctx.beginPath();
   ctx.rect(0, 0, W, H);
   let clipFirst = true;
@@ -249,22 +265,22 @@ function drawIsochrones(start) {
   ctx.lineTo(W + 4, -4);
   ctx.closePath();
   ctx.clip('evenodd');
-
-  result.isochrones.forEach((front, i) => {
-    if (front.length < 2) return;
-    const pts = [...front].sort((a, b) => bearing(start, a) - bearing(start, b));
-    const major = i % 8 === 0;
-    ctx.strokeStyle = major ? 'rgba(63,205,224,0.55)' : 'rgba(63,205,224,0.16)';
-    ctx.lineWidth = major ? 1.3 : 0.8;
+  // Two-pass batching: draw all minor fronts in one stroke, all major in another.
+  for (const isMajor of [false, true]) {
+    ctx.strokeStyle = isMajor ? 'rgba(63,205,224,0.55)' : 'rgba(63,205,224,0.16)';
+    ctx.lineWidth = isMajor ? 1.3 : 0.8;
     ctx.beginPath();
-    for (let j = 1; j < pts.length; j++) {
-      const a = pts[j-1], b = pts[j];
-      if (nearLand(a.lat,a.lon) || nearLand(b.lat,b.lon) || segOnLand(a,b)) continue;
-      const [x1,y1] = px(a.lat,a.lon), [x2,y2] = px(b.lat,b.lon);
-      ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
+    for (const { pts, major } of _isoCache) {
+      if (major !== isMajor) continue;
+      for (let j = 1; j < pts.length; j++) {
+        if (distNm(pts[j-1], pts[j]) > 400) continue; // skip corridor gaps
+        const [x1, y1] = px(pts[j-1].lat, pts[j-1].lon);
+        const [x2, y2] = px(pts[j].lat, pts[j].lon);
+        ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+      }
     }
     ctx.stroke();
-  });
+  }
   ctx.restore();
 }
 function drawTrack() {
@@ -452,7 +468,7 @@ function draw() {
   if (document.getElementById('t-isobar').checked) drawIsobars();
   if (document.getElementById('t-swell').checked) drawSwellDir();
   if (document.getElementById('t-land').checked) drawLand();
-  if (document.getElementById('t-iso').checked) drawIsochrones(origin);
+  if (document.getElementById('t-iso').checked) drawIsochrones();
   if (document.getElementById('t-track').checked) { drawTrack(); drawGybes(); drawSailChanges(); }
   drawMarkers(); if (livePos) { drawBoatHeading(); placeBoatDot(); }
 }
