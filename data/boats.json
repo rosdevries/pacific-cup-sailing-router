@@ -1,9 +1,9 @@
 {
  "boatOrder": [
   "sc40",
-  "tp52",
+  "cal40",
   "sunfast3300",
-  "cal40"
+  "tp52"
  ],
  "boats": {
   "sc40": {
@@ -33,7 +33,7 @@
    }
   },
   "tp52": {
-   "name": "Favonius 2",
+   "name": "TP52",
    "meta": "Favonius 2 · ORR US41687",
    "loa": 15.85,
    "asymSpinnaker": true,
