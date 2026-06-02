@@ -246,14 +246,17 @@ function buildIsoCache() {
   _isoCache = null;
   if (!result || !result.isochrones) return;
   const tr = result.track;
-  const CORR = 250; // nm corridor around the optimal track
-  const coarse = tr.filter((_, i) => i % 5 === 0); // thin track for faster proximity check
+  const CORR = 250;
+  const coarse = tr.filter((_, i) => i % 5 === 0);
   const inCorridor = p => !coarse.length || coarse.some(t => distNm(p, t) < CORR);
+  // Arc filter: keep only points within ±45° of the initial optimal heading
+  const optHdg = tr.length >= 2 ? bearing(tr[0], tr[1]) : bearing(origin, DEST);
+  const inArc = p => Math.abs(angDiff(bearing(origin, p), optHdg)) <= 45;
   _isoCache = result.isochrones.map((front, i) => {
-    if (i < 8) return null; // skip first 24 h — too close to origin, messy near land
+    if (i < 2) return null; // skip first 6 h — too close to origin
     if (front.length < 2) return null;
     const pts = front
-      .filter(inCorridor)
+      .filter(p => inCorridor(p) && inArc(p))
       .sort((a, b) => bearing(origin, a) - bearing(origin, b));
     return pts.length >= 2 ? { pts, major: i % 8 === 0 } : null;
   }).filter(Boolean);
