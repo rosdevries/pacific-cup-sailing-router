@@ -117,12 +117,15 @@ export function makeSampler(env) {
     while (ti < times.length - 2 && times[ti + 1] < t) ti++;
     const ft = Math.min(1, Math.max(0, (t - times[ti]) / (times[ti + 1] - times[ti])));
     const sc = n => {
-      const a = bil(env[n], ti, iy, ix, fy, fx), b = bil(env[n], ti + 1, iy, ix, fy, fx);
+      const arr = env[n]; if (!arr) return 0;
+      const a = bil(arr, ti, iy, ix, fy, fx), b = bil(arr, ti + 1, iy, ix, fy, fx);
       return a + (b - a) * ft;
     };
     const dr = n => {
-      const ax = bil(env[n + '_x'], ti,     iy, ix, fy, fx), ay = bil(env[n + '_y'], ti,     iy, ix, fy, fx);
-      const bx = bil(env[n + '_x'], ti + 1, iy, ix, fy, fx), by = bil(env[n + '_y'], ti + 1, iy, ix, fy, fx);
+      const xa = env[n + '_x'], ya = env[n + '_y'];
+      if (!xa || !ya) return 0;
+      const ax = bil(xa, ti, iy, ix, fy, fx), ay = bil(ya, ti, iy, ix, fy, fx);
+      const bx = bil(xa, ti + 1, iy, ix, fy, fx), by = bil(ya, ti + 1, iy, ix, fy, fx);
       const x = ax + (bx - ax) * ft, y = ay + (by - ay) * ft;
       return (Math.atan2(x, y) * 180 / Math.PI + 360) % 360;
     };

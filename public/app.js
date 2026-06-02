@@ -104,8 +104,8 @@ let resolveCompute = null;
 worker.onmessage = (e) => {
   if (e.data.type === 'result') {
     result = e.data;
-    telemetry();
     scheduleDraw();
+    telemetry();
     if (resolveCompute) { resolveCompute(); resolveCompute = null; }
   } else if (e.data.type === 'error') {
     console.error('[worker]', e.data.message);
@@ -625,7 +625,7 @@ cv.addEventListener('touchend', ev => {
 }, { passive: false });
 
 // ---- Controls wiring ----
-document.querySelectorAll('#controls input').forEach(c => c.addEventListener('change', draw));
+document.querySelectorAll('#controls input').forEach(c => c.addEventListener('change', scheduleDraw));
 document.getElementById('reset').addEventListener('click', () => { origin = SF; resetView(); replan(); });
 document.getElementById('zoom-reset').addEventListener('click', resetView);
 document.getElementById('legend-bar').style.background =
