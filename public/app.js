@@ -15,8 +15,11 @@ function fmtPacific(epochMs) {
   return `${get('month')}-${get('day')} ${get('hour')}:${get('minute')} ${get('timeZoneName')}`;
 }
 
-// ---- Boats (loaded from JSON) ----
-const { boats: BOATS, boatOrder: BOAT_ORDER } = await fetch('/data/boats.json').then(r => r.json());
+// ---- Boats + island polygons (loaded from JSON) ----
+const [{ boats: BOATS, boatOrder: BOAT_ORDER }, ISLANDS] = await Promise.all([
+  fetch('/data/boats.json').then(r => r.json()),
+  fetch('/islands.json').then(r => r.json()).catch(() => []),
+]);
 
 // ---- Constants ----
 const SF         = { lat: 37.60,    lon: -122.90    };
@@ -51,8 +54,14 @@ const CALIFORNIA_COAST = [
   [35.1, -120.9], // Point San Luis
   [34.5, -120.5], // Point Conception
   [34.4, -119.7], // Santa Barbara
+  [34.2, -119.2], // Ventura / Port Hueneme
   [34.0, -118.5], // Santa Monica
-  [33.7, -118.3], // San Pedro / LA Harbour
+  [33.95, -118.45], // El Segundo / Hermosa Beach
+  [33.84, -118.40], // Redondo Beach
+  [33.74, -118.41], // Point Vicente (Palos Verdes tip)
+  [33.70, -118.29], // Point Fermin / San Pedro
+  [33.76, -118.19], // Long Beach
+  [33.65, -117.98], // Huntington Beach
   [33.4, -117.8], // Newport Beach
   [33.2, -117.5], // San Clemente
   [32.7, -117.2], // San Diego
@@ -208,6 +217,23 @@ function drawLand() {
   const [rx, by] = px(VIEW.latMin, VIEW.lonMax);
   ctx.drawImage(LANDCANVAS, lx, ty, rx - lx, by - ty);
   drawCalifornia();
+  drawIslands();
+}
+function drawIslands() {
+  if (!ISLANDS.length) return;
+  ctx.save();
+  ctx.fillStyle = 'rgba(28,40,34,0.95)';
+  for (const poly of ISLANDS) {
+    ctx.beginPath();
+    let first = true;
+    for (const [lat, lon] of poly) {
+      const [x, y] = px(lat, lon);
+      if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
 }
 function drawGraticule() {
   ctx.strokeStyle = 'rgba(86,152,168,0.14)'; ctx.fillStyle = '#4a7d8a';
@@ -295,6 +321,14 @@ function drawIsochrones() {
   ctx.lineTo(W + 4, H + 4);
   ctx.lineTo(W + 4, -4);
   ctx.closePath();
+  for (const poly of ISLANDS) {
+    let first = true;
+    for (const [lat, lon] of poly) {
+      const [x, y] = px(lat, lon);
+      if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+  }
   ctx.clip('evenodd');
   // Two-pass batching: draw all minor fronts in one stroke, all major in another.
   for (const isMajor of [false, true]) {
