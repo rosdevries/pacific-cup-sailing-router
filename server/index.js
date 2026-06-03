@@ -29,7 +29,7 @@ let inflight = null;   // de-dupe concurrent lazy prefetch (prevents upstream st
 // Open-Meteo metadata API: returns the init time of the latest available GFS cycle.
 // This endpoint is NOT counted against rate limits.
 async function metadataLatestCycle() {
-  const url = 'https://api.open-meteo.com/data/ecmwf?variables=&models=gfs_seamless';
+  const url = 'https://api.open-meteo.com/data/gfs_seamless?variables=';
   try {
     const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
     if (r.ok) {
