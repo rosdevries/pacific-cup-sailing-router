@@ -250,9 +250,37 @@
   #dep-cancel:hover { color: var(--ink); border-color: rgba(255,255,255,0.3); }
   #dep-go { background: var(--cyan); color: var(--abyss); border: 1px solid var(--cyan); font-weight: 500; }
   #dep-go:hover { filter: brightness(1.1); }
+
+  /* Mobile advisory banner — hidden on tablet/desktop */
+  #mobile-banner { display: none; }
+  @media (max-width: 767px) {
+    #mobile-banner:not([hidden]) {
+      display: flex; align-items: flex-start; gap: 12px;
+      position: fixed; top: 0; left: 0; right: 0; z-index: 300;
+      background: rgba(6, 16, 25, 0.96); border-bottom: 1px solid rgba(255, 177, 59, 0.45);
+      backdrop-filter: blur(8px); padding: 12px 14px;
+    }
+  }
+  #mobile-banner .mb-msg {
+    flex: 1; font-family: 'IBM Plex Mono', monospace; font-size: 11px; line-height: 1.5;
+    color: var(--amber);
+  }
+  #mobile-banner .mb-msg em { font-style: normal; color: var(--ink); }
+  #mobile-banner .mb-close {
+    flex-shrink: 0; background: transparent; border: 1px solid rgba(255, 177, 59, 0.4);
+    color: var(--amber); border-radius: 2px; padding: 4px 10px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.1em;
+    cursor: pointer; margin-top: 1px;
+  }
+  #mobile-banner .mb-close:hover { background: rgba(255, 177, 59, 0.1); }
 </style>
 </head>
 <body>
+
+<div id="mobile-banner">
+  <div class="mb-msg">⚠ Best on desktop or tablet. <em>You can still use the tool — but the panels and map work best on a larger screen.</em></div>
+  <button class="mb-close" id="mobile-banner-close">✕ Got it</button>
+</div>
 
 <div id="loader">
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="180" height="180" aria-hidden="true">
@@ -423,6 +451,14 @@
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   }
+  (function () {
+    var banner = document.getElementById('mobile-banner');
+    if (localStorage.getItem('pp-mobile-banner-dismissed')) { banner.hidden = true; return; }
+    document.getElementById('mobile-banner-close').addEventListener('click', function () {
+      banner.hidden = true;
+      localStorage.setItem('pp-mobile-banner-dismissed', '1');
+    });
+  })();
 </script>
 </body>
 </html>
