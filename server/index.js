@@ -71,7 +71,8 @@ export async function refreshCache(cycle) {
   const grid = Object.fromEntries(
     Object.entries(raw).map(([k, v]) => [k, v instanceof Float32Array ? Array.from(v) : v]),
   );
-  grid.cycle = new Date(cycle * 1000).toISOString();
+  grid.cycle     = new Date(cycle * 1000).toISOString();
+  grid.fetchedAt = new Date().toISOString();
 
   // Round numeric arrays to useful precision — eliminates Float32 noise, compresses much better.
   for (const [k, v] of Object.entries(grid)) {

@@ -838,6 +838,12 @@ function applyEnv(env) {
   EPOCH0 = env.epoch0; HORIZON_H = env.marineHorizonHours; MAXT = env.times[env.times.length - 1];
 }
 function setStatus(t, c) { const s = document.getElementById('status'); s.textContent = t; s.className = 'status '+(c||''); }
+function fetchedSuffix(env) {
+  const ref = env.fetchedAt || env.cycle;
+  const h = Math.round((Date.now() - new Date(ref).getTime()) / 3600000);
+  if (h <= 0) return '';
+  return env.fetchedAt ? ` · fetched ${h}h ago` : ` · ${h}h old`;
+}
 function updateTimeLabel() {
   const d = Math.floor(DISP_T/24), h = Math.round(DISP_T - d*24);
   const when = fmtPacific((EPOCH0 + DISP_T*3600)*1000);
@@ -856,8 +862,7 @@ async function replan() {
   const seq = ++reqSeq, cyc = expectedCycle();
   if (CACHE && CACHE.cycle === cyc) {
     applyEnv(CACHE.env);
-    const cachedAgeH = Math.round((Date.now() - new Date(CACHE.env.cycle).getTime()) / 3600000);
-    const cachedAgeSuffix = cachedAgeH > 0 ? ` · ${cachedAgeH}h old` : '';
+    const cachedAgeSuffix = fetchedSuffix(CACHE.env);
     setStatus('◉ live · cached · GFS '+cycLabel(cyc)+cachedAgeSuffix, 'live');
     setupSlider(true); await compute(); return;
   }
@@ -875,9 +880,7 @@ async function replan() {
   if (seq !== reqSeq) return;
   if (env) {
     CACHE = { cycle: cyc, env }; LOAD_CYCLE = cyc; applyEnv(env);
-    const ageH = Math.round((Date.now() - new Date(env.cycle).getTime()) / 3600000);
-    const ageSuffix = ageH > 0 ? ` · ${ageH}h old` : '';
-    setStatus('◉ live · GFS + marine · '+cycLabel(cyc)+ageSuffix, 'live'); setupSlider(true);
+    setStatus('◉ live · GFS + marine · '+cycLabel(cyc)+fetchedSuffix(env), 'live'); setupSlider(true);
   } else if (hardFail) {
     if (SAMPLER) { setStatus('◉ live · last forecast (refetch failed)', 'live'); }
     else { FIELD = 'synthetic'; LIVE_OFF = true; setStatus('◉ demo · synthetic field (live unavailable)', 'demo'); setupSlider(false); }
