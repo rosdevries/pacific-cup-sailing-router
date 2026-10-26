@@ -72,14 +72,14 @@ Two kinds of data, two homes:
 - **Static, version-controlled → the GitHub repo:** the land mask PNG, `data/boats.json`, the
   coastline build script. Small, rarely changes, belongs in git.
 - **Dynamic forecast cache (regenerated every 6 h, multi-MB) → a Railway volume** (persistent
-  disk mounted at e.g. `/data/cache`). Never commit these to git. A scheduled prefetch writes the
-  current cycle's corridor grid there; the API serves it from memory with the volume as the
+  disk mounted at e.g. `/data/cache`). Never commit these to git. The server fetches the
+  current cycle's corridor grid once (30-min poll + lazy fetch on miss), keeps only that cycle on
+  the volume, and serves it from memory with the volume as the
   warm-restart fallback. Cache key = the GFS cycle. See `docs/ARCHITECTURE.md`.
 
 ## Run (fill in as you build)
 - `npm install`
 - `npm run dev` — local server + frontend
-- `npm run prefetch` — fetch current GFS cycle into the cache (also runs on a 6 h Railway cron)
 - Build the land mask (rarely): `python3 scripts/make-landmask.py` (needs `basemap-data-hires`)
 
 ## Key files
@@ -88,10 +88,10 @@ Two kinds of data, two homes:
 - `docs/ARCHITECTURE.md` — data flow, caching, storage decision, rate-limit math, API shape
 - `docs/ALGORITHMS.md` — routing / polar / wave / forecast / land-mask math + conventions
 - `data/boats.json`, `data/corridor-landmask.png` — static assets
-- `server/index.js`, `scripts/prefetch.js` — production scaffolding to flesh out
+- `server/index.js` — Node server: static files, `/api/forecast`, per-cycle cache on the volume
 
 ## Coding conventions
 - Node ESM (`"type":"module"`), modern JS, no TypeScript unless you choose to add it.
 - Keep the core routing/forecast logic framework-agnostic (pure functions) so it runs in both the
-  browser (Web Worker) and Node (prefetch). The browser/Node split is only I/O.
+  browser (Web Worker) and Node (server). The browser/Node split is only I/O.
 - Match the prototype's behavior exactly when porting; cross-check passage times against it.

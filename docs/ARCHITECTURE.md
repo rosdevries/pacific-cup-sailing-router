@@ -5,17 +5,15 @@
  browser ──▶│  static frontend  +  GET /api/forecast                     │
  (N users)  │        │                    │                              │
             │        │            in-memory cache (by GFS cycle)         │
-            │        │                    │  miss → read volume / lazy prefetch
+            │        │                    │  miss → read volume / fetch  │
+            │        │                    │  + poll for new cycle /30 min│
             │        │                    ▼                              │
             │        │            Railway volume  /data/cache/*.json     │◀── persistent
             └────────┼────────────────────┼──────────────────────────────┘
-                     │                     ▲
-                     │            ┌────────┴─────────┐  6-hourly cron
-                     │            │ scripts/prefetch │  (aligned to GFS cycles)
-                     │            └────────┬─────────┘
-                     ▼                     ▼
-              (offline fallback)     Open-Meteo  (forecast + marine APIs)
-              synthetic wind field   GFS / GFS-Wave, 6 h cycles
+                     │                    ▼
+                     ▼              Open-Meteo  (forecast + marine APIs)
+              (offline fallback)    GFS / GFS-Wave, 6 h cycles
+              synthetic wind field
 ```
 
 ## The core idea: cache by model cycle

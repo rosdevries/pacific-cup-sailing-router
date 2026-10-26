@@ -15,7 +15,6 @@ Isochrone weather-routing for offshore sailing races — **Pac Cup** (San Franci
 ```bash
 npm install
 cp .env.example .env       # set CACHE_DIR etc.
-npm run prefetch           # fetch the current GFS cycle into the cache
 npm run dev                # serve frontend + API at http://localhost:3000
 ```
 
@@ -29,7 +28,6 @@ data/
   boats.json              ← polar library
   corridor-landmask.png   ← GSHHG land mask for the SF–Hawaii corridor
 scripts/
-  prefetch.js             ← fetch one GFS cycle into the cache (6 h cron)
   gen-og-image.mjs        ← regenerate site/og-image.png after brand changes
   make-landmask.py        ← rebuild the land mask from GSHHG
 prototype/router-demo.html← original self-contained reference implementation
@@ -37,7 +35,7 @@ docs/                     ← architecture, algorithms, build plan
 ```
 
 ## Deploy
-Railway web service (auto-deploy on push to `master`) with a persistent volume at `/app/cache` for the forecast cache. A 6-hourly cron runs `npm run prefetch`. The static marketing page is served from Cloudflare Pages (`site/` output directory, no build step).
+Railway web service (auto-deploy on push to `master`) with a persistent volume at `/data/cache` for the forecast cache. The server polls for a new GFS cycle every 30 min, fetches it once, and deletes older cycles from the volume. The static marketing page is served from Cloudflare Pages (`site/` output directory, no build step).
 
 ## Data sources & attribution
 Weather via **Open-Meteo** (GFS / GFS-Wave, CC-BY 4.0) — UI credits **DWD** (data) and **Open-Meteo** (API). Coastline from **GSHHG**.

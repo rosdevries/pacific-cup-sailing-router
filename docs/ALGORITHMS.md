@@ -11,7 +11,7 @@ the prototype is the source of truth.
 ## Geometry (prototype §geometry)
 `distNm`, `bearing` (initial great-circle bearing a→b), `gcProject(p, brg, nm)` (advance along a
 bearing), `vec(dirDeg, mag)` → `{x,y}`, `brgOf(x,y)` → degrees. These are pure and shared by the
-browser worker and the Node prefetch.
+browser worker and the Node server.
 
 ## Polar (prototype §boat library)
 Schema (see `data/boats.json`): `{ tws:[...], twa:[...], speed:[twa][tws], beat:{angle:[tws], speed:[tws]} }`.

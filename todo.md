@@ -36,7 +36,7 @@ Cross-check passage times against the prototype after any change to routing/fore
 - [x] **Stampede guard**: `inflight` de-dupe in `getGrid()` confirmed
 - [x] **`scripts/prefetch.js`**: idempotent (skips if cycle file already exists), metadata API with fallback
 - [x] **Smoke test**: live fetch confirmed — 19×29×336 frames, 32MB cache written to `.cache/`; second request hits `mem` (no upstream call)
-- [ ] **Railway cron**: set up in Railway UI — cron schedule `15 */6 * * *` running `npm run prefetch`, sharing the volume mount
+- [x] ~~**Railway cron**: set up in Railway UI — cron schedule `15 */6 * * *` running `npm run prefetch`, sharing the volume mount~~ — superseded, see below
 
 ---
 
@@ -77,7 +77,7 @@ All ported into `public/app.js`:
 - [x] **CC-BY 4.0 attribution**: visible in UI footer — credits DWD (data) and Open-Meteo (API) with links
 - [x] **HTTPS**: Railway provides it; geolocation will work on the deployed URL
 - [x] **Railway volume**: persistent volume attached at `/data/cache` via dashboard
-- [x] **Railway cron**: `15 */6 * * *` → `npm run prefetch`, sharing same volume — configured via dashboard
+- [x] ~~**Railway cron**: `15 */6 * * *` → `npm run prefetch`~~ — removed: a volume attaches to one service, so the cron couldn't write the server's cache; the server's 30-min poll handles refresh. Delete the cron in the Railway dashboard.
 
 ---
 
