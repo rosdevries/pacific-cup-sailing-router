@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, access, readdir, unlink } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -82,12 +82,31 @@ export async function refreshCache(cycle) {
     grid[k]  = v.map(n => Math.round(n * m) / m);
   }
 
-  const payload = JSON.stringify(grid);
-  await mkdir(CACHE_DIR, { recursive: true });
-  await writeFile(path.join(CACHE_DIR, `forecast-v4-${cycle}.json`), payload);
-  await writeFile(path.join(CACHE_DIR, 'latest.json'), payload);
+  // Serve from memory even if the disk write fails (e.g. volume full) — the volume is
+  // only the warm-restart fallback.
   mem = { cycle, grid };
+  try {
+    const payload = JSON.stringify(grid);
+    await mkdir(CACHE_DIR, { recursive: true });
+    await pruneCache(cycle);   // free space before writing the new ~10 MB file
+    await writeFile(path.join(CACHE_DIR, `forecast-v4-${cycle}.json`), payload);
+    await writeFile(path.join(CACHE_DIR, 'latest.json'), payload);
+  } catch (e) {
+    console.error('[server] cache write failed:', e.message);
+  }
   return grid;
+}
+
+// Only the current cycle's file is ever read, so delete every other forecast-*.json.
+// Without this a new ~10 MB file accumulates every 6 h and fills the volume.
+async function pruneCache(keepCycle) {
+  let files;
+  try { files = await readdir(CACHE_DIR); } catch { return; }
+  for (const f of files) {
+    if (!/^forecast-.*\.json$/.test(f) || f === `forecast-v4-${keepCycle}.json`) continue;
+    await unlink(path.join(CACHE_DIR, f))
+      .catch(e => console.error('[server] prune failed:', f, e.message));
+  }
 }
 
 async function getGrid() {
@@ -175,6 +194,9 @@ const server = http.createServer(async (req, res) => {
 server.on('error', e => { console.error('[server] listen error:', e.message, 'PORT:', PORT); process.exit(1); });
 server.listen(PORT, () => {
   console.log(`Pacific Cup Sailing Router on :${PORT}`);
+  // Clear stale cycles left on the volume by earlier deploys.
+  metadataLatestCycle().then(pruneCache)
+    .catch(e => console.error('[server] startup prune failed:', e.message));
   // Background GFS refresh: poll every 30 min so a new cycle is cached as soon
   // as it's available (~5 h after cycle init) without needing a separate cron service.
   setInterval(() => {
